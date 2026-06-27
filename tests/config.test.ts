@@ -24,10 +24,13 @@ describe("getRuntimeConfigReport", () => {
     delete process.env.GOOGLE_CLIENT_ID;
     delete process.env.GOOGLE_CLIENT_SECRET;
     delete process.env.GOOGLE_REDIRECT_URI;
+    delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    delete process.env.CLERK_SECRET_KEY;
 
     const report = getRuntimeConfigReport();
 
     expect(report.ok).toBe(true);
+    expect(report.authMode).toBe("demo");
     expect(report.repository).toBe("file");
     expect(report.aiProvider).toBe("rules");
     expect(report.gmailMode).toBe("mock");
@@ -63,5 +66,30 @@ describe("getRuntimeConfigReport", () => {
         severity: "error",
       }),
     );
+  });
+
+  it("rejects partial Clerk authentication configuration", () => {
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_example";
+    delete process.env.CLERK_SECRET_KEY;
+
+    const report = getRuntimeConfigReport();
+
+    expect(report.ok).toBe(false);
+    expect(report.authMode).toBe("demo");
+    expect(report.checks).toContainEqual(
+      expect.objectContaining({
+        key: "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY/CLERK_SECRET_KEY",
+        severity: "error",
+      }),
+    );
+  });
+
+  it("reports Clerk mode when both Clerk keys are present", () => {
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_example";
+    process.env.CLERK_SECRET_KEY = "sk_test_example";
+
+    const report = getRuntimeConfigReport();
+
+    expect(report.authMode).toBe("clerk");
   });
 });

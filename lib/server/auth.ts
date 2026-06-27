@@ -1,9 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { demoWorkspace } from "@/lib/demo-data";
 import type { WorkspaceSnapshot, WorkspaceUser } from "@/lib/types";
 
 export const sessionCookieName = "opspilot_session";
+export type AuthMode = "clerk" | "demo";
 
 export type RequestSession = {
   user: WorkspaceUser;
@@ -11,6 +14,16 @@ export type RequestSession = {
 };
 
 export async function requireSession(): Promise<RequestSession> {
+  if (isClerkConfigured()) {
+    const clerkUser = await currentUser();
+
+    if (!clerkUser) {
+      redirect("/login");
+    }
+
+    return sessionFromClerkUser(clerkUser);
+  }
+
   const cookieSession = await readSessionCookie();
 
   if (cookieSession) {
@@ -27,6 +40,17 @@ export async function requireSession(): Promise<RequestSession> {
     user,
     businessId: user.businessId,
   };
+}
+
+export function getAuthMode(): AuthMode {
+  return isClerkConfigured() ? "clerk" : "demo";
+}
+
+export function isClerkConfigured() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+      process.env.CLERK_SECRET_KEY,
+  );
 }
 
 export function createSessionCookieValue(user: WorkspaceUser) {
@@ -135,4 +159,36 @@ function isRole(role: unknown): role is WorkspaceUser["role"] {
   }
 
   return false;
+}
+
+function sessionFromClerkUser(clerkUser: Awaited<ReturnType<typeof currentUser>>): RequestSession {
+  if (!clerkUser) {
+    redirect("/login");
+  }
+
+  const metadata = clerkUser.publicMetadata;
+  const businessId =
+    typeof metadata.businessId === "string"
+      ? metadata.businessId
+      : demoWorkspace.businessId;
+  const role = isRole(metadata.role) ? metadata.role : "owner";
+  const email =
+    clerkUser.primaryEmailAddress?.emailAddress ??
+    clerkUser.emailAddresses[0]?.emailAddress ??
+    "user@opspilot.example";
+  const nameFromParts = [clerkUser.firstName, clerkUser.lastName]
+    .filter(Boolean)
+    .join(" ");
+  const fullName = clerkUser.fullName || nameFromParts || email;
+
+  return {
+    businessId,
+    user: {
+      id: `clerk-${clerkUser.id}`,
+      businessId,
+      email,
+      fullName,
+      role,
+    },
+  };
 }

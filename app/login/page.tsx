@@ -1,4 +1,25 @@
+import { SignIn } from "@clerk/nextjs";
+import { isClerkConfigured } from "@/lib/server/auth";
+
 export default function LoginPage() {
+  if (isClerkConfigured()) {
+    return (
+      <main className="login-shell">
+        <section className="login-panel clerk-login-panel">
+          <div>
+            <p className="eyebrow">OpsPilot access</p>
+            <h1>Sign in to OpsPilot</h1>
+            <p>
+              Production authentication is handled by Clerk. After sign-in,
+              OpsPilot maps your identity to the workspace role model.
+            </p>
+          </div>
+          <SignIn fallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="login-shell">
       <section className="login-panel">

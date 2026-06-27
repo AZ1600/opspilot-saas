@@ -1,6 +1,8 @@
 "use client";
 
+import { SignOutButton, UserButton } from "@clerk/nextjs";
 import { useEffect, useMemo, useState } from "react";
+import type { AuthMode } from "@/lib/server/auth";
 import type {
   ActionStatus,
   BillingPlan,
@@ -37,6 +39,7 @@ type ClientPermission =
   | "workspace:reset";
 
 type CommandCenterProps = {
+  authMode: AuthMode;
   initialWorkspace: WorkspaceSnapshot;
 };
 type CustomerProfile = {
@@ -294,7 +297,7 @@ function actionScore(action: BusinessAction) {
   return priority + action.value;
 }
 
-export function CommandCenter({ initialWorkspace }: CommandCenterProps) {
+export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps) {
   const [workspace, setWorkspace] = useState(initialWorkspace);
   const [view, setView] = useState<View>("brief");
   const [filter, setFilter] = useState<Filter>("all");
@@ -980,14 +983,27 @@ export function CommandCenter({ initialWorkspace }: CommandCenterProps) {
             <button className="secondary-button" disabled={!canResetWorkspace} onClick={resetWorkspace} type="button">
               Reset demo
             </button>
-            <a className="secondary-button link-button" href="/login">
-              Switch user
-            </a>
-            <form action="/api/auth/logout" method="post">
-              <button className="secondary-button" type="submit">
-                Log out
-              </button>
-            </form>
+            {authMode === "clerk" ? (
+              <>
+                <UserButton />
+                <SignOutButton redirectUrl="/login">
+                  <button className="secondary-button" type="button">
+                    Log out
+                  </button>
+                </SignOutButton>
+              </>
+            ) : (
+              <>
+                <a className="secondary-button link-button" href="/login">
+                  Switch user
+                </a>
+                <form action="/api/auth/logout" method="post">
+                  <button className="secondary-button" type="submit">
+                    Log out
+                  </button>
+                </form>
+              </>
+            )}
           </div>
         </header>
 

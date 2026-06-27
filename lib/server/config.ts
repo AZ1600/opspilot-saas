@@ -6,6 +6,7 @@ type ConfigCheck = {
 
 export type RuntimeConfigReport = {
   aiProvider: string;
+  authMode: "clerk" | "demo";
   environment: string;
   gmailMode: "mock" | "oauth";
   ok: boolean;
@@ -19,6 +20,7 @@ export function getRuntimeConfigReport(): RuntimeConfigReport {
   const environment = process.env.NODE_ENV ?? "development";
   const checks: ConfigCheck[] = [];
   const gmailMode = hasGoogleOAuthConfig() ? "oauth" : "mock";
+  const authMode = hasClerkConfig() ? "clerk" : "demo";
 
   if (repository !== "file" && repository !== "postgres") {
     checks.push({
@@ -78,6 +80,14 @@ export function getRuntimeConfigReport(): RuntimeConfigReport {
     });
   }
 
+  if (hasPartialClerkConfig()) {
+    checks.push({
+      key: "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY/CLERK_SECRET_KEY",
+      message: "Set both Clerk keys or neither of them.",
+      severity: "error",
+    });
+  }
+
   if (gmailMode === "oauth" && !process.env.OPSPILOT_TOKEN_ENCRYPTION_KEY) {
     checks.push({
       key: "OPSPILOT_TOKEN_ENCRYPTION_KEY",
@@ -88,6 +98,7 @@ export function getRuntimeConfigReport(): RuntimeConfigReport {
 
   return {
     aiProvider,
+    authMode,
     environment,
     gmailMode,
     ok: checks.every((check) => check.severity !== "error"),
@@ -109,6 +120,23 @@ function hasPartialGoogleOAuthConfig() {
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
     process.env.GOOGLE_REDIRECT_URI,
+  ];
+  const present = values.filter(Boolean).length;
+
+  return present > 0 && present < values.length;
+}
+
+function hasClerkConfig() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+      process.env.CLERK_SECRET_KEY,
+  );
+}
+
+function hasPartialClerkConfig() {
+  const values = [
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    process.env.CLERK_SECRET_KEY,
   ];
   const present = values.filter(Boolean).length;
 

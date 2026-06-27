@@ -29,6 +29,7 @@ OpsPilot automates and demonstrates:
 * Execution queue for approved actions
 * Impact ledger for estimated revenue and time saved
 * Team roles and permissions
+* Clerk-ready production authentication
 * SaaS billing-plan interface
 * PostgreSQL-ready repository layer
 * Live Vercel deployment connected to Neon Postgres
@@ -72,6 +73,7 @@ Local JSON Storage or PostgreSQL
 
 * Backend
   * Next.js API routes
+  * Clerk-ready authentication boundary
   * Signed-cookie prototype authentication
   * Server-side permission checks
   * Workspace repository abstraction
@@ -104,6 +106,7 @@ Local JSON Storage or PostgreSQL
 * Node.js
 * PostgreSQL
 * Neon
+* Clerk
 * SQL
 * Git
 * GitHub
@@ -173,6 +176,7 @@ Operational accountability
 * Impact ledger
 * Execution queue
 * Team roles: owner, manager, and staff
+* Clerk-ready login flow
 * Billing-plan interface
 * Workspace onboarding
 * Settings management
@@ -284,6 +288,13 @@ OPSPILOT_DEV_ROLE=owner
 OPSPILOT_SESSION_SECRET=replace-with-a-long-random-secret
 ```
 
+Optional production authentication with Clerk:
+
+```text
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_SECRET_KEY=sk_...
+```
+
 Production-style PostgreSQL mode:
 
 ```text
@@ -324,6 +335,7 @@ Recommended deployment flow:
 * Import the GitHub repository into Vercel
 * Attach Neon Postgres as the managed database provider
 * Add environment variables in Vercel
+* Add Clerk keys when production authentication is enabled
 * Run the database schema
 * Verify `/api/health`
 * Keep AI and Gmail OAuth disabled until credentials are configured
@@ -331,6 +343,7 @@ Recommended deployment flow:
 For a production-style deployment:
 
 * Use PostgreSQL instead of local file storage
+* Use Clerk for production sign-in
 * Set a strong session secret
 * Set a token encryption key before enabling Gmail OAuth
 * Use Gmail read-only scope only
@@ -388,6 +401,7 @@ For a production-style deployment:
 * Add production authentication with organization membership
 * Connect a hosted PostgreSQL database
 * Deploy the app to Vercel
+* Configure Clerk production authentication keys
 * Add real Gmail OAuth import in production
 * Add QuickBooks integration
 * Add calendar integration
