@@ -3,6 +3,40 @@ import { fileWorkspaceRepository } from "@/lib/server/workspace-store";
 import type { BusinessAction } from "@/lib/types";
 
 describe("fileWorkspaceRepository", () => {
+  it("preserves the authenticated owner when onboarding a workspace", async () => {
+    const businessId = "test-business-auth-owner";
+    const owner = {
+      id: "clerk-user-123",
+      businessId,
+      email: "wale@example.com",
+      fullName: "Wale Azeez",
+      role: "owner" as const,
+    };
+
+    const workspace = await fileWorkspaceRepository.onboard(
+      businessId,
+      {
+        businessName: "OpsPilot Test Co.",
+        niche: "Operations automation",
+        ownerName: "Wale Azeez",
+        primaryPainPoint: "missed_leads",
+      },
+      owner,
+    );
+
+    expect(workspace.currentUser).toMatchObject({
+      id: owner.id,
+      email: owner.email,
+      fullName: owner.fullName,
+      role: "owner",
+    });
+    expect(workspace.teamMembers[0]).toMatchObject({
+      id: owner.id,
+      email: owner.email,
+      status: "active",
+    });
+  });
+
   it("creates approval, impact, and execution records when an action is approved", async () => {
     const businessId = "test-business-repository";
     await fileWorkspaceRepository.reset(businessId);

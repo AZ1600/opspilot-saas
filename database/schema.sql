@@ -11,6 +11,8 @@ create table if not exists businesses (
 create table if not exists users (
   id text primary key,
   business_id text not null references businesses(id) on delete cascade,
+  auth_provider text,
+  auth_user_id text,
   email text not null unique,
   full_name text not null,
   role text not null check (role in ('owner', 'manager', 'staff')),
@@ -18,6 +20,16 @@ create table if not exists users (
   invited_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table users
+  add column if not exists auth_provider text;
+
+alter table users
+  add column if not exists auth_user_id text;
+
+create unique index if not exists users_auth_identity_idx
+  on users (auth_provider, auth_user_id)
+  where auth_provider is not null and auth_user_id is not null;
 
 create table if not exists connected_accounts (
   id text not null,

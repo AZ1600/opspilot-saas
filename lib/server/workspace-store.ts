@@ -12,15 +12,18 @@ import type {
   ImpactEntry,
   OnboardingProfile,
   TeamInvite,
+  WorkspaceUser,
   WorkspaceSettings,
   WorkspaceSnapshot,
 } from "@/lib/types";
 import type {
+  AuthenticatedIdentity,
   DecisionStatus,
   ExecutionStatus,
   InboxImport,
   InboxScanInsert,
   IngestionInsert,
+  ResolvedSession,
   ScanInsert,
   WorkspaceRepository,
 } from "@/lib/server/workspace-repository";
@@ -159,10 +162,55 @@ export async function resetWorkspace(businessId: string) {
 export async function onboardWorkspace(
   businessId: string,
   profile: OnboardingProfile,
+  owner?: WorkspaceUser,
 ) {
-  const workspace = createWorkspaceFromOnboarding(businessId, profile);
+  const workspace = createWorkspaceFromOnboarding(businessId, profile, owner);
   await writeWorkspace(businessId, workspace);
   return workspace;
+}
+
+export async function resolveAuthenticatedSession(
+  identity: AuthenticatedIdentity,
+): Promise<ResolvedSession> {
+  const businessId = `business-${slugifyIdentity(identity.providerUserId)}`;
+  const workspace = await readWorkspace(businessId);
+  const existingMember = workspace.teamMembers.find(
+    (member) => member.email.toLowerCase() === identity.email.toLowerCase(),
+  );
+  const user: WorkspaceUser = existingMember
+    ? {
+        id: existingMember.id,
+        businessId,
+        email: existingMember.email,
+        fullName: existingMember.fullName,
+        role: existingMember.role,
+      }
+    : {
+        id: `${identity.provider}-${identity.providerUserId}`,
+        businessId,
+        email: identity.email,
+        fullName: identity.fullName,
+        role: "owner",
+      };
+
+  if (!existingMember) {
+    await writeWorkspace(businessId, {
+      ...workspace,
+      currentUser: user,
+      teamMembers: [
+        {
+          ...user,
+          status: "active",
+        },
+        ...workspace.teamMembers.filter((member) => member.role !== "owner"),
+      ],
+    });
+  }
+
+  return {
+    businessId,
+    user,
+  };
 }
 
 export async function updateWorkspaceSettings(
@@ -467,6 +515,7 @@ function impactNoteFor(
 
 export const fileWorkspaceRepository: WorkspaceRepository = {
   read: readWorkspace,
+  resolveAuthenticatedSession,
   reset: resetWorkspace,
   onboard: onboardWorkspace,
   updateSettings: updateWorkspaceSettings,
@@ -485,3 +534,7 @@ export const fileWorkspaceRepository: WorkspaceRepository = {
     actor: string,
   ) => updateActionDecision(businessId, actionId, status, actor),
 };
+
+function slugifyIdentity(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}

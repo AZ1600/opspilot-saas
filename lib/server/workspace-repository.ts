@@ -5,6 +5,7 @@ import type {
   OnboardingProfile,
   ConnectedAccount,
   TeamInvite,
+  WorkspaceUser,
   WorkspaceSettings,
   WorkspaceSnapshot,
 } from "@/lib/types";
@@ -29,13 +30,27 @@ export type ExecutionStatus = Extract<
   WorkspaceSnapshot["executionJobs"][number]["status"],
   "completed" | "failed"
 >;
+export type AuthenticatedIdentity = {
+  provider: "clerk";
+  providerUserId: string;
+  email: string;
+  fullName: string;
+};
+export type ResolvedSession = {
+  user: WorkspaceUser;
+  businessId: string;
+};
 
 export type WorkspaceRepository = {
   read(businessId: string): Promise<WorkspaceSnapshot>;
+  resolveAuthenticatedSession(
+    identity: AuthenticatedIdentity,
+  ): Promise<ResolvedSession>;
   reset(businessId: string): Promise<WorkspaceSnapshot>;
   onboard(
     businessId: string,
     profile: OnboardingProfile,
+    owner?: WorkspaceUser,
   ): Promise<WorkspaceSnapshot>;
   updateSettings(
     businessId: string,

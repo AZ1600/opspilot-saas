@@ -5,16 +5,31 @@ import type {
   KnowledgeDocument,
   OnboardingProfile,
   TimelineEvent,
+  WorkspaceUser,
   WorkspaceSnapshot,
 } from "@/lib/types";
 
 export function createWorkspaceFromOnboarding(
   businessId: string,
   profile: OnboardingProfile,
+  owner?: WorkspaceUser,
 ): WorkspaceSnapshot {
   const niche = profile.niche.trim();
   const businessName = profile.businessName.trim();
   const ownerName = profile.ownerName.trim();
+  const workspaceOwner: WorkspaceUser = owner
+    ? {
+        ...owner,
+        businessId,
+        fullName: ownerName || owner.fullName,
+        role: "owner",
+      }
+    : {
+        ...demoWorkspace.currentUser,
+        businessId,
+        fullName: ownerName,
+        email: `${slugify(ownerName || "owner")}@${slugify(businessName || "business")}.example`,
+      };
 
   return {
     ...demoWorkspace,
@@ -24,18 +39,10 @@ export function createWorkspaceFromOnboarding(
     onboardingCompleted: true,
     primaryPainPoint: profile.primaryPainPoint,
     billingPlan: getPlan("starter"),
-    currentUser: {
-      ...demoWorkspace.currentUser,
-      businessId,
-      fullName: ownerName,
-      email: `${slugify(ownerName || "owner")}@${slugify(businessName || "business")}.example`,
-    },
+    currentUser: workspaceOwner,
     teamMembers: [
       {
-        ...demoWorkspace.currentUser,
-        businessId,
-        fullName: ownerName,
-        email: `${slugify(ownerName || "owner")}@${slugify(businessName || "business")}.example`,
+        ...workspaceOwner,
         status: "active",
       },
     ],

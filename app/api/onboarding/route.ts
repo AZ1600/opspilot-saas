@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     ownerName: body.ownerName!.trim(),
     niche: body.niche!.trim(),
     primaryPainPoint: body.primaryPainPoint!,
-  });
+  }, session.user);
 
   return NextResponse.json({ workspace: presentWorkspace(workspace, session) });
 }

@@ -3,6 +3,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { demoWorkspace } from "@/lib/demo-data";
+import { getWorkspaceRepository } from "@/lib/server/repository";
 import type { WorkspaceSnapshot, WorkspaceUser } from "@/lib/types";
 
 export const sessionCookieName = "opspilot_session";
@@ -161,17 +162,13 @@ function isRole(role: unknown): role is WorkspaceUser["role"] {
   return false;
 }
 
-function sessionFromClerkUser(clerkUser: Awaited<ReturnType<typeof currentUser>>): RequestSession {
+async function sessionFromClerkUser(
+  clerkUser: Awaited<ReturnType<typeof currentUser>>,
+): Promise<RequestSession> {
   if (!clerkUser) {
     redirect("/login");
   }
 
-  const metadata = clerkUser.publicMetadata;
-  const businessId =
-    typeof metadata.businessId === "string"
-      ? metadata.businessId
-      : demoWorkspace.businessId;
-  const role = isRole(metadata.role) ? metadata.role : "owner";
   const email =
     clerkUser.primaryEmailAddress?.emailAddress ??
     clerkUser.emailAddresses[0]?.emailAddress ??
@@ -181,14 +178,10 @@ function sessionFromClerkUser(clerkUser: Awaited<ReturnType<typeof currentUser>>
     .join(" ");
   const fullName = clerkUser.fullName || nameFromParts || email;
 
-  return {
-    businessId,
-    user: {
-      id: `clerk-${clerkUser.id}`,
-      businessId,
-      email,
-      fullName,
-      role,
-    },
-  };
+  return getWorkspaceRepository().resolveAuthenticatedSession({
+    provider: "clerk",
+    providerUserId: clerkUser.id,
+    email: email.toLowerCase(),
+    fullName,
+  });
 }

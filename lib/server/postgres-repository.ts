@@ -3,11 +3,13 @@ import { getPlan } from "@/lib/billing";
 import { demoWorkspace } from "@/lib/demo-data";
 import { getDatabasePool, withTransaction } from "@/lib/server/database";
 import type {
+  AuthenticatedIdentity,
   DecisionStatus,
   ExecutionStatus,
   InboxImport,
   InboxScanInsert,
   IngestionInsert,
+  ResolvedSession,
   ScanInsert,
   WorkspaceRepository,
 } from "@/lib/server/workspace-repository";
@@ -31,6 +33,7 @@ import type {
   TimelineEvent,
   WorkspaceSettings,
   WorkspaceSnapshot,
+  WorkspaceUser,
 } from "@/lib/types";
 
 type DatabaseClient = PoolClient | ReturnType<typeof getDatabasePool>;
@@ -47,6 +50,8 @@ type BusinessRow = {
 type UserRow = {
   id: string;
   business_id: string;
+  auth_provider: string | null;
+  auth_user_id: string | null;
   email: string;
   full_name: string;
   role: TeamMember["role"];
@@ -384,6 +389,67 @@ async function read(businessId: string) {
   return ensureWorkspace(businessId);
 }
 
+async function resolveAuthenticatedSession(
+  identity: AuthenticatedIdentity,
+): Promise<ResolvedSession> {
+  return withTransaction(async (client) => {
+    await ensureAuthIdentitySchema(client);
+
+    const byIdentity = await client.query<UserRow>(
+      `select * from users
+       where auth_provider = $1 and auth_user_id = $2
+       limit 1`,
+      [identity.provider, identity.providerUserId],
+    );
+    const identityUser = byIdentity.rows[0];
+
+    if (identityUser) {
+      return sessionFromUser(identityUser);
+    }
+
+    const byEmail = await client.query<UserRow>(
+      "select * from users where lower(email) = $1 limit 1",
+      [identity.email.toLowerCase()],
+    );
+    const emailUser = byEmail.rows[0];
+
+    if (emailUser) {
+      await attachAuthIdentity(client, emailUser.id, identity);
+      return sessionFromUser({
+        ...emailUser,
+        auth_provider: identity.provider,
+        auth_user_id: identity.providerUserId,
+        status: "active",
+      });
+    }
+
+    const businessId = `business-${slugifyIdentity(identity.providerUserId)}`;
+    const owner: TeamMember = {
+      id: `${identity.provider}-${identity.providerUserId}`,
+      businessId,
+      email: identity.email,
+      fullName: identity.fullName,
+      role: "owner",
+      status: "active",
+    };
+    const seed = {
+      ...demoWorkspace,
+      businessId,
+      onboardingCompleted: false,
+      currentUser: owner,
+      teamMembers: [owner],
+    };
+
+    await replaceWorkspace(client, seed);
+    await attachAuthIdentity(client, owner.id, identity);
+
+    return {
+      businessId,
+      user: owner,
+    };
+  });
+}
+
 async function reset(businessId: string) {
   return withTransaction(async (client) => {
     const workspace = {
@@ -404,10 +470,33 @@ async function reset(businessId: string) {
   });
 }
 
-async function onboard(businessId: string, profile: OnboardingProfile) {
+async function onboard(
+  businessId: string,
+  profile: OnboardingProfile,
+  owner?: WorkspaceUser,
+) {
   return withTransaction(async (client) => {
-    const workspace = createWorkspaceFromOnboarding(businessId, profile);
+    await ensureAuthIdentitySchema(client);
+    const existingOwnerAuth = owner
+      ? await authIdentityForUser(client, owner.id, owner.email)
+      : null;
+    const workspace = createWorkspaceFromOnboarding(businessId, profile, owner);
     await replaceWorkspace(client, workspace);
+
+    if (owner && existingOwnerAuth) {
+      await client.query(
+        `update users
+         set auth_provider = $3, auth_user_id = $4, status = 'active'
+         where business_id = $1 and id = $2`,
+        [
+          businessId,
+          owner.id,
+          existingOwnerAuth.auth_provider,
+          existingOwnerAuth.auth_user_id,
+        ],
+      );
+    }
+
     return workspace;
   });
 }
@@ -705,6 +794,82 @@ async function firstUserForBusiness(client: PoolClient, businessId: string) {
   }
 
   return user;
+}
+
+let authIdentitySchemaReady = false;
+
+async function ensureAuthIdentitySchema(client: PoolClient) {
+  if (authIdentitySchemaReady) {
+    return;
+  }
+
+  await client.query("alter table users add column if not exists auth_provider text");
+  await client.query("alter table users add column if not exists auth_user_id text");
+  await client.query(
+    `create unique index if not exists users_auth_identity_idx
+     on users (auth_provider, auth_user_id)
+     where auth_provider is not null and auth_user_id is not null`,
+  );
+  authIdentitySchemaReady = true;
+}
+
+async function authIdentityForUser(
+  client: PoolClient,
+  userId: string,
+  email: string,
+) {
+  const result = await client.query<Pick<UserRow, "auth_provider" | "auth_user_id">>(
+    `select auth_provider, auth_user_id
+     from users
+     where id = $1 or lower(email) = $2
+     order by case when id = $1 then 0 else 1 end
+     limit 1`,
+    [userId, email.toLowerCase()],
+  );
+  const authIdentity = result.rows[0];
+
+  if (!authIdentity?.auth_provider || !authIdentity.auth_user_id) {
+    return null;
+  }
+
+  return authIdentity;
+}
+
+async function attachAuthIdentity(
+  client: PoolClient,
+  userId: string,
+  identity: AuthenticatedIdentity,
+) {
+  await client.query(
+    `update users
+     set auth_provider = $2,
+         auth_user_id = $3,
+         email = $4,
+         full_name = $5,
+         status = 'active',
+         invited_at = null
+     where id = $1`,
+    [
+      userId,
+      identity.provider,
+      identity.providerUserId,
+      identity.email.toLowerCase(),
+      identity.fullName,
+    ],
+  );
+}
+
+function sessionFromUser(user: UserRow): ResolvedSession {
+  return {
+    businessId: user.business_id,
+    user: {
+      id: user.id,
+      businessId: user.business_id,
+      email: user.email,
+      fullName: user.full_name,
+      role: user.role,
+    },
+  };
 }
 
 async function insertUser(
@@ -1225,8 +1390,14 @@ function toIso(value: Date | string) {
   return value instanceof Date ? value.toISOString() : value;
 }
 
+function slugifyIdentity(value: string) {
+  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return slug || `user-${Date.now()}`;
+}
+
 export const postgresWorkspaceRepository: WorkspaceRepository = {
   read,
+  resolveAuthenticatedSession,
   reset,
   onboard,
   updateSettings,
