@@ -1,0 +1,32 @@
+{
+  "name": "opspilot-saas",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check:config": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/check-config.mjs",
+    "db:schema": "node scripts/apply-schema.mjs",
+    "db:check": "node scripts/check-database.mjs"
+  },
+  "dependencies": {
+    "@types/pg": "^8.20.0",
+    "next": "latest",
+    "pg": "^8.22.0",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "typescript": "latest",
+    "vitest": "^4.1.9"
+  }
+}
