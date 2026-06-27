@@ -1,7 +1,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { demoWorkspace } from "@/lib/demo-data";
 import { getPlan } from "@/lib/billing";
+import { getWritableDataDir } from "@/lib/server/file-storage";
 import { createWorkspaceFromOnboarding } from "@/lib/workspace-factory";
 import type {
   ActionStatus,
@@ -24,10 +25,8 @@ import type {
   WorkspaceRepository,
 } from "@/lib/server/workspace-repository";
 
-const workspaceDir = join(process.cwd(), "data");
-
 function workspacePathFor(businessId: string) {
-  return join(workspaceDir, `${businessId}.json`);
+  return join(getWritableDataDir(), `${businessId}.json`);
 }
 
 function seedWorkspaceFor(businessId: string): WorkspaceSnapshot {
@@ -125,7 +124,7 @@ export async function inviteTeamMember(
 
 async function ensureWorkspaceFile(businessId: string) {
   const workspacePath = workspacePathFor(businessId);
-  await mkdir(dirname(workspacePath), { recursive: true });
+  await mkdir(getWritableDataDir(), { recursive: true });
 
   try {
     await readFile(workspacePath, "utf8");
@@ -147,7 +146,7 @@ export async function writeWorkspace(
   workspace: WorkspaceSnapshot,
 ) {
   const workspacePath = workspacePathFor(businessId);
-  await mkdir(dirname(workspacePath), { recursive: true });
+  await mkdir(getWritableDataDir(), { recursive: true });
   await writeFile(workspacePath, JSON.stringify(workspace, null, 2));
 }
 

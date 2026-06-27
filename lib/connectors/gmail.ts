@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { getWritableDataDir } from "@/lib/server/file-storage";
 import type { ConnectedAccount, InboxMessage } from "@/lib/types";
 
 type GoogleTokenResponse = {
@@ -37,7 +38,10 @@ const gmailScope = "https://www.googleapis.com/auth/gmail.readonly";
 const authBaseUrl = "https://accounts.google.com/o/oauth2/v2/auth";
 const tokenUrl = "https://oauth2.googleapis.com/token";
 const gmailApiBaseUrl = "https://gmail.googleapis.com/gmail/v1/users/me";
-const tokenStorePath = join(process.cwd(), "data", "oauth-tokens.json");
+
+function tokenStorePath() {
+  return join(getWritableDataDir(), "oauth-tokens.json");
+}
 
 export function isRealGmailOAuthConfigured() {
   return Boolean(
@@ -364,7 +368,7 @@ function oauthSecret() {
 
 async function readTokenStore() {
   try {
-    const raw = await readFile(tokenStorePath, "utf8");
+    const raw = await readFile(tokenStorePath(), "utf8");
     return JSON.parse(raw) as Record<string, string>;
   } catch {
     return {};
@@ -372,8 +376,9 @@ async function readTokenStore() {
 }
 
 async function writeTokenStore(tokens: Record<string, string>) {
-  await mkdir(dirname(tokenStorePath), { recursive: true });
-  await writeFile(tokenStorePath, JSON.stringify(tokens, null, 2));
+  const storePath = tokenStorePath();
+  await mkdir(dirname(storePath), { recursive: true });
+  await writeFile(storePath, JSON.stringify(tokens, null, 2));
 }
 
 function gmailTokenKey(businessId: string) {
