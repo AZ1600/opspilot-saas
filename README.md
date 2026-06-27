@@ -389,19 +389,41 @@ For a production-style deployment:
 
 ## Screenshots
 
-Screenshots can be added under `docs/screenshots/`.
+### Workspace Setup
 
-Suggested screenshots:
+![Workspace Setup](docs/screenshots/workspace-setup.png)
 
-* OpsPilot command center
-* Daily brief
-* Manual ingestion workflow
-* Revenue leaks
-* Customer risk
-* Approval workflow
-* Impact ledger
-* Execution queue
-* GitHub Actions CI run
+### Dashboard / Daily Brief
+
+![Dashboard Daily Brief](docs/screenshots/dashboard-daily-brief.png)
+
+### Inbox
+
+![Inbox](docs/screenshots/inbox.png)
+
+### Manual Ingest
+
+![Manual Ingest](docs/screenshots/manual-ingest.png)
+
+### Customer Risk
+
+![Customer Risk](docs/screenshots/customer-risk.png)
+
+### Impact Ledger
+
+![Impact Ledger](docs/screenshots/impact-ledger.png)
+
+### Execution Queue
+
+![Execution Queue](docs/screenshots/execution-queue.png)
+
+### GitHub Actions CI
+
+![GitHub Actions CI](docs/screenshots/github-actions-ci.png)
+
+### Vercel Deployment
+
+![Vercel Deployment Success](docs/screenshots/vercel-deployment-success.png)
 
 ---
 
