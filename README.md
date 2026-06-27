@@ -31,6 +31,7 @@ OpsPilot automates and demonstrates:
 * Team roles and permissions
 * SaaS billing-plan interface
 * PostgreSQL-ready repository layer
+* Live Vercel deployment connected to Neon Postgres
 * Health checks and runtime configuration diagnostics
 * GitHub Actions CI for test, lint, typecheck, and build validation
 
@@ -85,7 +86,7 @@ Local JSON Storage or PostgreSQL
 
 * Data Layer
   * Local JSON repository for development
-  * PostgreSQL repository for production-style persistence
+  * Neon Postgres for production-style persistence
   * Database schema for tenants, users, actions, risks, ingestions, approvals, impact entries, and execution jobs
 
 * Integrations
@@ -102,6 +103,7 @@ Local JSON Storage or PostgreSQL
 * TypeScript
 * Node.js
 * PostgreSQL
+* Neon
 * SQL
 * Git
 * GitHub
@@ -223,6 +225,14 @@ npm run db:schema
 npm run db:check
 ```
 
+The live deployment health endpoint verifies:
+
+```text
+repository: postgres
+reachable: true
+mode: postgres
+```
+
 GitHub Actions runs the main validation pipeline automatically:
 
 ```bash
@@ -306,12 +316,14 @@ GOOGLE_REDIRECT_URI=https://your-domain.com/api/connectors/gmail/callback
 
 This project is ready to be deployed from GitHub to Vercel.
 
+The live deployment is connected to Neon Postgres through Vercel environment variables. No database credentials are stored in the repository.
+
 Recommended deployment flow:
 
 * Push source code to GitHub
 * Import the GitHub repository into Vercel
+* Attach Neon Postgres as the managed database provider
 * Add environment variables in Vercel
-* Attach a managed PostgreSQL provider
 * Run the database schema
 * Verify `/api/health`
 * Keep AI and Gmail OAuth disabled until credentials are configured
