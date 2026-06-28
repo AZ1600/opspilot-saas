@@ -16,6 +16,22 @@ The project was built as part of my Software Engineering, Cloud SaaS, AI Enginee
 
 ---
 
+## Production SaaS Capabilities
+
+OpsPilot includes production-style SaaS foundations beyond a static demo:
+
+* Clerk authentication for real user sign-in
+* Neon Postgres persistence for deployed workspace data
+* Multi-tenant workspace resolution per authenticated user
+* Owner, manager, and staff role-based access control
+* Invited-user workspace joining by verified email identity
+* Owner-approved AI action workflow with approve and dismiss controls
+* Runtime health endpoint for deployment and dependency diagnostics
+* GitHub Actions CI for tests, linting, typechecking, and production builds
+* Vercel deployment connected to managed Postgres
+
+---
+
 ## Platform Features
 
 OpsPilot automates and demonstrates:
