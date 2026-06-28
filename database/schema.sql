@@ -5,8 +5,24 @@ create table if not exists businesses (
   onboarding_completed boolean not null default false,
   primary_pain_point text not null check (primary_pain_point in ('missed_leads', 'overdue_invoices', 'customer_complaints', 'scheduling')) default 'missed_leads',
   billing_plan text not null check (billing_plan in ('starter', 'growth', 'pro')) default 'starter',
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  subscription_status text,
   created_at timestamptz not null default now()
 );
+
+alter table businesses
+  add column if not exists stripe_customer_id text;
+
+alter table businesses
+  add column if not exists stripe_subscription_id text;
+
+alter table businesses
+  add column if not exists subscription_status text;
+
+create index if not exists businesses_stripe_customer_idx
+  on businesses (stripe_customer_id)
+  where stripe_customer_id is not null;
 
 create table if not exists users (
   id text primary key,

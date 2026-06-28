@@ -18,6 +18,7 @@ import type {
 } from "@/lib/types";
 import type {
   AuthenticatedIdentity,
+  BillingState,
   DecisionStatus,
   ExecutionStatus,
   InboxImport,
@@ -25,6 +26,8 @@ import type {
   IngestionInsert,
   ResolvedSession,
   ScanInsert,
+  StripeBillingUpdate,
+  StripeCustomerBillingUpdate,
   WorkspaceRepository,
 } from "@/lib/server/workspace-repository";
 
@@ -88,6 +91,24 @@ export async function updateBillingPlan(
 
   await writeWorkspace(businessId, nextWorkspace);
   return nextWorkspace;
+}
+
+export async function readBillingState(): Promise<BillingState> {
+  return {
+    stripeCustomerId: null,
+    stripeSubscriptionId: null,
+    subscriptionStatus: null,
+  };
+}
+
+export async function updateStripeBilling(update: StripeBillingUpdate) {
+  await updateBillingPlan(update.businessId, update.planId);
+}
+
+export async function updateStripeBillingByCustomer(
+  _update: StripeCustomerBillingUpdate,
+) {
+  return;
 }
 
 export async function inviteTeamMember(
@@ -520,6 +541,9 @@ export const fileWorkspaceRepository: WorkspaceRepository = {
   onboard: onboardWorkspace,
   updateSettings: updateWorkspaceSettings,
   updateBillingPlan,
+  readBillingState,
+  updateStripeBilling,
+  updateStripeBillingByCustomer,
   inviteTeamMember,
   addScan: addScanToWorkspace,
   addIngestion: addIngestionToWorkspace,

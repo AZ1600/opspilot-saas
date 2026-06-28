@@ -26,6 +26,7 @@ OpsPilot includes production-style SaaS foundations beyond a static demo:
 * Owner, manager, and staff role-based access control
 * Invited-user workspace joining by verified email identity
 * Owner-approved AI action workflow with approve and dismiss controls
+* Stripe Checkout, Customer Portal, and webhook billing foundation
 * Runtime health endpoint for deployment and dependency diagnostics
 * GitHub Actions CI for tests, linting, typechecking, and production builds
 * Vercel deployment connected to managed Postgres
@@ -357,6 +358,16 @@ GOOGLE_CLIENT_SECRET=...
 GOOGLE_REDIRECT_URI=https://your-domain.com/api/connectors/gmail/callback
 ```
 
+Optional Stripe subscriptions:
+
+```text
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_STARTER=price_...
+STRIPE_PRICE_GROWTH=price_...
+STRIPE_PRICE_PRO=price_...
+```
+
 ---
 
 ## Deployment
@@ -417,6 +428,8 @@ For a production-style deployment:
 
 * Multi-role team access
 * Billing-plan interface
+* Stripe subscription checkout foundation
+* Stripe webhook plan synchronization
 * Tenant workspace model
 * Approval audit trail
 * Impact tracking

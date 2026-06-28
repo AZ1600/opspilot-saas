@@ -4,6 +4,7 @@ import { demoWorkspace } from "@/lib/demo-data";
 import { getDatabasePool, withTransaction } from "@/lib/server/database";
 import type {
   AuthenticatedIdentity,
+  BillingState,
   DecisionStatus,
   ExecutionStatus,
   InboxImport,
@@ -11,6 +12,8 @@ import type {
   IngestionInsert,
   ResolvedSession,
   ScanInsert,
+  StripeBillingUpdate,
+  StripeCustomerBillingUpdate,
   WorkspaceRepository,
 } from "@/lib/server/workspace-repository";
 import { createWorkspaceFromOnboarding } from "@/lib/workspace-factory";
@@ -45,6 +48,9 @@ type BusinessRow = {
   onboarding_completed: boolean;
   primary_pain_point: PainPoint;
   billing_plan: BillingPlan["id"];
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  subscription_status: string | null;
 };
 
 type UserRow = {
@@ -552,6 +558,75 @@ async function updateBillingPlan(
   });
 }
 
+async function readBillingState(businessId: string): Promise<BillingState> {
+  return withTransaction(async (client) => {
+    await ensureBillingSchema(client);
+    await ensureWorkspaceInTransaction(client, businessId);
+
+    const result = await client.query<
+      Pick<
+        BusinessRow,
+        "stripe_customer_id" | "stripe_subscription_id" | "subscription_status"
+      >
+    >(
+      `select stripe_customer_id, stripe_subscription_id, subscription_status
+       from businesses
+       where id = $1`,
+      [businessId],
+    );
+    const row = result.rows[0];
+
+    return {
+      stripeCustomerId: row?.stripe_customer_id ?? null,
+      stripeSubscriptionId: row?.stripe_subscription_id ?? null,
+      subscriptionStatus: row?.subscription_status ?? null,
+    };
+  });
+}
+
+async function updateStripeBilling(update: StripeBillingUpdate) {
+  await withTransaction(async (client) => {
+    await ensureBillingSchema(client);
+    await ensureWorkspaceInTransaction(client, update.businessId);
+    await client.query(
+      `update businesses
+       set billing_plan = $2,
+           stripe_customer_id = $3,
+           stripe_subscription_id = $4,
+           subscription_status = $5
+       where id = $1`,
+      [
+        update.businessId,
+        update.planId,
+        update.customerId,
+        update.subscriptionId,
+        update.status,
+      ],
+    );
+  });
+}
+
+async function updateStripeBillingByCustomer(
+  update: StripeCustomerBillingUpdate,
+) {
+  await withTransaction(async (client) => {
+    await ensureBillingSchema(client);
+    await client.query(
+      `update businesses
+       set billing_plan = $2,
+           stripe_subscription_id = $3,
+           subscription_status = $4
+       where stripe_customer_id = $1`,
+      [
+        update.customerId,
+        update.planId,
+        update.subscriptionId,
+        update.status,
+      ],
+    );
+  });
+}
+
 async function inviteTeamMember(businessId: string, invite: TeamInvite) {
   return withTransaction(async (client) => {
     await ensureWorkspaceInTransaction(client, businessId);
@@ -797,6 +872,7 @@ async function firstUserForBusiness(client: PoolClient, businessId: string) {
 }
 
 let authIdentitySchemaReady = false;
+let billingSchemaReady = false;
 
 async function ensureAuthIdentitySchema(client: PoolClient) {
   if (authIdentitySchemaReady) {
@@ -811,6 +887,22 @@ async function ensureAuthIdentitySchema(client: PoolClient) {
      where auth_provider is not null and auth_user_id is not null`,
   );
   authIdentitySchemaReady = true;
+}
+
+async function ensureBillingSchema(client: PoolClient) {
+  if (billingSchemaReady) {
+    return;
+  }
+
+  await client.query("alter table businesses add column if not exists stripe_customer_id text");
+  await client.query("alter table businesses add column if not exists stripe_subscription_id text");
+  await client.query("alter table businesses add column if not exists subscription_status text");
+  await client.query(
+    `create index if not exists businesses_stripe_customer_idx
+     on businesses (stripe_customer_id)
+     where stripe_customer_id is not null`,
+  );
+  billingSchemaReady = true;
 }
 
 async function authIdentityForUser(
@@ -1402,6 +1494,9 @@ export const postgresWorkspaceRepository: WorkspaceRepository = {
   onboard,
   updateSettings,
   updateBillingPlan,
+  readBillingState,
+  updateStripeBilling,
+  updateStripeBillingByCustomer,
   inviteTeamMember,
   addScan,
   addIngestion,

@@ -7,6 +7,7 @@ type ConfigCheck = {
 export type RuntimeConfigReport = {
   aiProvider: string;
   authMode: "clerk" | "demo";
+  billingMode: "demo" | "stripe";
   environment: string;
   gmailMode: "mock" | "oauth";
   ok: boolean;
@@ -21,6 +22,7 @@ export function getRuntimeConfigReport(): RuntimeConfigReport {
   const checks: ConfigCheck[] = [];
   const gmailMode = hasGoogleOAuthConfig() ? "oauth" : "mock";
   const authMode = hasClerkConfig() ? "clerk" : "demo";
+  const billingMode = hasStripeConfig() ? "stripe" : "demo";
 
   if (repository !== "file" && repository !== "postgres") {
     checks.push({
@@ -88,6 +90,14 @@ export function getRuntimeConfigReport(): RuntimeConfigReport {
     });
   }
 
+  if (hasPartialStripeConfig()) {
+    checks.push({
+      key: "STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET/STRIPE_PRICE_*",
+      message: "Set Stripe secret, webhook secret, and all plan price IDs or none of them.",
+      severity: "error",
+    });
+  }
+
   if (gmailMode === "oauth" && !process.env.OPSPILOT_TOKEN_ENCRYPTION_KEY) {
     checks.push({
       key: "OPSPILOT_TOKEN_ENCRYPTION_KEY",
@@ -99,6 +109,7 @@ export function getRuntimeConfigReport(): RuntimeConfigReport {
   return {
     aiProvider,
     authMode,
+    billingMode,
     environment,
     gmailMode,
     ok: checks.every((check) => check.severity !== "error"),
@@ -141,4 +152,25 @@ function hasPartialClerkConfig() {
   const present = values.filter(Boolean).length;
 
   return present > 0 && present < values.length;
+}
+
+function hasStripeConfig() {
+  return stripeValues().every(Boolean);
+}
+
+function hasPartialStripeConfig() {
+  const values = stripeValues();
+  const present = values.filter(Boolean).length;
+
+  return present > 0 && present < values.length;
+}
+
+function stripeValues() {
+  return [
+    process.env.STRIPE_SECRET_KEY,
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_PRICE_STARTER,
+    process.env.STRIPE_PRICE_GROWTH,
+    process.env.STRIPE_PRICE_PRO,
+  ];
 }

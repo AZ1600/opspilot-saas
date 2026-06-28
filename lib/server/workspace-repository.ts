@@ -40,6 +40,22 @@ export type ResolvedSession = {
   user: WorkspaceUser;
   businessId: string;
 };
+export type BillingState = {
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  subscriptionStatus: string | null;
+};
+export type StripeBillingUpdate = {
+  businessId: string;
+  customerId: string;
+  planId: WorkspaceSnapshot["billingPlan"]["id"];
+  status: string;
+  subscriptionId: string | null;
+};
+export type StripeCustomerBillingUpdate = Omit<
+  StripeBillingUpdate,
+  "businessId"
+>;
 
 export type WorkspaceRepository = {
   read(businessId: string): Promise<WorkspaceSnapshot>;
@@ -60,6 +76,11 @@ export type WorkspaceRepository = {
     businessId: string,
     planId: "starter" | "growth" | "pro",
   ): Promise<WorkspaceSnapshot>;
+  readBillingState(businessId: string): Promise<BillingState>;
+  updateStripeBilling(update: StripeBillingUpdate): Promise<void>;
+  updateStripeBillingByCustomer(
+    update: StripeCustomerBillingUpdate,
+  ): Promise<void>;
   inviteTeamMember(
     businessId: string,
     invite: TeamInvite,

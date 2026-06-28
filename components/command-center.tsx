@@ -323,6 +323,7 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
   const [isConnectingGmail, setIsConnectingGmail] = useState(false);
   const [isImportingGmail, setIsImportingGmail] = useState(false);
   const [updatingExecutionId, setUpdatingExecutionId] = useState("");
@@ -669,8 +670,8 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
     setIsSavingPlan(true);
 
     try {
-      const response = await fetch("/api/billing/plan", {
-        method: "PATCH",
+      const response = await fetch("/api/billing/checkout", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId }),
       });
@@ -680,8 +681,19 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
       }
 
       const result = (await response.json()) as {
-        workspace: WorkspaceSnapshot;
+        mode: "demo" | "stripe";
+        url?: string;
+        workspace?: WorkspaceSnapshot;
       };
+
+      if (result.mode === "stripe" && result.url) {
+        window.location.assign(result.url);
+        return;
+      }
+
+      if (!result.workspace) {
+        throw new Error("Plan update failed");
+      }
 
       setWorkspace(result.workspace);
       notify(`${result.workspace.billingPlan.name} plan selected.`);
@@ -689,6 +701,27 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
       notify("Could not update billing plan. Try again.");
     } finally {
       setIsSavingPlan(false);
+    }
+  }
+
+  async function openBillingPortal() {
+    setIsOpeningPortal(true);
+
+    try {
+      const response = await fetch("/api/billing/portal", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Billing portal failed");
+      }
+
+      const result = (await response.json()) as { url: string };
+      window.location.assign(result.url);
+    } catch {
+      notify("Billing portal is available after Stripe checkout is configured.");
+    } finally {
+      setIsOpeningPortal(false);
     }
   }
 
@@ -1668,6 +1701,17 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
                   label="Potential recovery"
                   value={currency.format(recoverableRevenue)}
                 />
+              </div>
+              <div className="billing-actions">
+                <button
+                  className="secondary-button"
+                  disabled={isOpeningPortal || !canManageBilling}
+                  onClick={openBillingPortal}
+                  type="button"
+                >
+                  {isOpeningPortal ? "Opening..." : "Manage billing"}
+                </button>
+                <p>Stripe Checkout and Customer Portal are used when Stripe keys are configured.</p>
               </div>
             </section>
 
