@@ -331,6 +331,7 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
     fullName: "",
     role: "manager",
   });
+  const [lastInviteEmail, setLastInviteEmail] = useState("");
   const [isInviting, setIsInviting] = useState(false);
 
   const pendingActions = workspace.actions.filter(
@@ -709,9 +710,11 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
         workspace: WorkspaceSnapshot;
       };
 
+      const invitedEmail = teamInvite.email.trim().toLowerCase();
       setWorkspace(result.workspace);
       setTeamInvite({ email: "", fullName: "", role: "manager" });
-      notify("Team invite recorded.");
+      setLastInviteEmail(invitedEmail);
+      notify("Invite recorded. The teammate can sign in with that email.");
     } catch {
       notify("Could not invite that team member. Check the fields and try again.");
     } finally {
@@ -1826,6 +1829,10 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
 
             <section className="panel span-2">
               <PanelHeading eyebrow="Team" title="Access and roles" />
+              <p className="panel-copy">
+                Invite a teammate by email. When they sign in through Clerk with the same address,
+                OpsPilot activates the invite and applies the recorded role.
+              </p>
               <div className="team-layout">
                 <div className="team-list">
                   {workspace.teamMembers.map((member) => (
@@ -1842,6 +1849,13 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
                   ))}
                 </div>
                 <div className="invite-form">
+                  {lastInviteEmail ? (
+                    <div className="invite-notice">
+                      <span className="pill">Ready</span>
+                      <strong>{lastInviteEmail}</strong>
+                      <p>Ask this teammate to sign in at /login using this email address.</p>
+                    </div>
+                  ) : null}
                   <label>
                     <span>Full name</span>
                     <input
@@ -1890,7 +1904,7 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
                     onClick={inviteTeamMember}
                     type="button"
                   >
-                    {isInviting ? "Inviting..." : "Record invite"}
+                    {isInviting ? "Inviting..." : "Invite teammate"}
                   </button>
                 </div>
               </div>
