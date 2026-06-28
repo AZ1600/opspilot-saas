@@ -423,6 +423,10 @@ For a production-style deployment:
 
 ![Dashboard Daily Brief](docs/screenshots/dashboard-daily-brief.png)
 
+### Action Center Approval Flow
+
+![Action Center Approval Flow](docs/screenshots/action-center-approval-flow.png)
+
 ### Staff Role Limited Access
 
 ![Staff Role Limited Access](docs/screenshots/staff-role-limited-access.png)
