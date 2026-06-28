@@ -423,6 +423,10 @@ For a production-style deployment:
 
 ![Dashboard Daily Brief](docs/screenshots/dashboard-daily-brief.png)
 
+### Staff Role Limited Access
+
+![Staff Role Limited Access](docs/screenshots/staff-role-limited-access.png)
+
 ### Inbox
 
 ![Inbox](docs/screenshots/inbox.png)
