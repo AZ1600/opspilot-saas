@@ -32,6 +32,26 @@ OpsPilot includes production-style SaaS foundations beyond a static demo:
 
 ---
 
+## Case Study
+
+### Problem
+
+Small service businesses often lose money because important work is spread across inboxes, invoices, calendars, notes, and customer messages. Leads go unanswered, invoices become overdue, complaints are missed, and owners do not always have time to review every operational signal manually.
+
+### Solution
+
+OpsPilot turns messy business signals into a prioritized operations queue. It scans messages, identifies revenue leaks and customer risks, drafts the next action, and keeps every outbound action behind an owner approval step.
+
+### Engineering Approach
+
+The application was designed as a production-style SaaS rather than a static prototype. Authentication is handled with Clerk, workspace data is persisted in Neon Postgres, and a repository layer keeps local JSON development separate from deployed PostgreSQL storage. Server-side permission checks enforce owner, manager, and staff access levels across billing, team management, inbox scanning, and action approval.
+
+### Result
+
+The project demonstrates a complete SaaS workflow: authenticated users join tenant workspaces, owners invite teammates, business signals generate AI-assisted actions, approved work moves into an execution queue, and the impact ledger tracks estimated recovered revenue and time saved.
+
+---
+
 ## Platform Features
 
 OpsPilot automates and demonstrates:
