@@ -51,6 +51,17 @@ The application was designed as a production-style SaaS rather than a static pro
 
 The project demonstrates a complete SaaS workflow: authenticated users join tenant workspaces, owners invite teammates, business signals generate AI-assisted actions, approved work moves into an execution queue, and the impact ledger tracks estimated recovered revenue and time saved.
 
+### Public Demo and SaaS Access
+
+OpsPilot separates portfolio exploration from real tenant access:
+
+* `/` is the public product overview.
+* `/demo` opens a read-only workspace backed by bundled sample data, with no account required.
+* `/login` uses Clerk when production authentication is configured.
+* `/app` is the authenticated tenant workspace and retains server-side role and permission checks.
+
+The public demo does not load a private workspace or call mutation APIs. Approval, execution, billing, connector, settings, and reset controls are disabled, while the authenticated SaaS experience remains protected.
+
 ---
 
 ## Platform Features

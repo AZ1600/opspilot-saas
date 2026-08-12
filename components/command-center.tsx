@@ -1,6 +1,7 @@
 "use client";
 
 import { SignOutButton, UserButton } from "@clerk/nextjs";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { AuthMode } from "@/lib/server/auth";
 import type {
@@ -40,14 +41,19 @@ type Filter = "all" | "urgent" | "pending";
 type CommandCenterProps = {
   authMode: AuthMode;
   initialWorkspace: WorkspaceSnapshot;
+  isPublicDemo?: boolean;
 };
 
-export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps) {
+export function CommandCenter({
+  authMode,
+  initialWorkspace,
+  isPublicDemo = false,
+}: CommandCenterProps) {
   const [workspace, setWorkspace] = useState(initialWorkspace);
   const [view, setView] = useState<View>("brief");
   const [filter, setFilter] = useState<Filter>("all");
   const [toast, setToast] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!isPublicDemo);
   const [isScanning, setIsScanning] = useState(false);
   const [isIngesting, setIsIngesting] = useState(false);
   const [isScanningInbox, setIsScanningInbox] = useState(false);
@@ -131,16 +137,16 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
       profile.risk === "low" ? sum : sum + profile.lifetimeValue,
     0,
   );
-  const canApproveActions = can(workspace.currentUser.role, "actions:approve");
-  const canManageBilling = can(workspace.currentUser.role, "billing:manage");
-  const canScanInbox = can(workspace.currentUser.role, "inbox:scan");
+  const canApproveActions = !isPublicDemo && can(workspace.currentUser.role, "actions:approve");
+  const canManageBilling = !isPublicDemo && can(workspace.currentUser.role, "billing:manage");
+  const canScanInbox = !isPublicDemo && can(workspace.currentUser.role, "inbox:scan");
   const canCreateIngestions = can(
     workspace.currentUser.role,
     "ingestions:create",
-  );
-  const canManageSettings = can(workspace.currentUser.role, "settings:manage");
-  const canManageTeam = can(workspace.currentUser.role, "team:manage");
-  const canResetWorkspace = can(workspace.currentUser.role, "workspace:reset");
+  ) && !isPublicDemo;
+  const canManageSettings = !isPublicDemo && can(workspace.currentUser.role, "settings:manage");
+  const canManageTeam = !isPublicDemo && can(workspace.currentUser.role, "team:manage");
+  const canResetWorkspace = !isPublicDemo && can(workspace.currentUser.role, "workspace:reset");
 
   const visibleActions = useMemo(() => {
     if (filter === "urgent") {
@@ -160,6 +166,10 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
   }
 
   useEffect(() => {
+    if (isPublicDemo) {
+      return;
+    }
+
     async function loadWorkspace() {
       try {
         const response = await fetch("/api/workspace");
@@ -179,7 +189,7 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
     }
 
     void loadWorkspace();
-  }, []);
+  }, [isPublicDemo]);
 
   async function updateActionStatus(
     id: string,
@@ -744,6 +754,17 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
       </aside>
 
       <section className="main-content">
+        {isPublicDemo && (
+          <div className="demo-banner" role="status">
+            <div>
+              <strong>Public demo workspace</strong>
+              <span>Explore safely with bundled sample data. Changes and external actions are disabled.</span>
+            </div>
+            <Link className="primary-button link-button" href="/login">
+              Sign in to create a workspace
+            </Link>
+          </div>
+        )}
         <header className="topbar">
           <div>
             <p className="eyebrow">AI operations manager</p>
@@ -764,7 +785,11 @@ export function CommandCenter({ authMode, initialWorkspace }: CommandCenterProps
             <button className="secondary-button" disabled={!canResetWorkspace} onClick={resetWorkspace} type="button">
               Reset demo
             </button>
-            {authMode === "clerk" ? (
+            {isPublicDemo ? (
+              <Link className="secondary-button link-button" href="/">
+                Back to overview
+              </Link>
+            ) : authMode === "clerk" ? (
               <>
                 <UserButton />
                 <SignOutButton redirectUrl="/login">

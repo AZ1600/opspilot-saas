@@ -1,0 +1,16 @@
+import { CommandCenter } from "@/components/command-center";
+import { getAuthMode, presentWorkspace, requireSession } from "@/lib/server/auth";
+import { getWorkspaceRepository } from "@/lib/server/repository";
+
+export default async function WorkspacePage() {
+  const session = await requireSession();
+  const repository = getWorkspaceRepository();
+  const workspace = await repository.read(session.businessId);
+
+  return (
+    <CommandCenter
+      authMode={getAuthMode()}
+      initialWorkspace={presentWorkspace(workspace, session)}
+    />
+  );
+}
