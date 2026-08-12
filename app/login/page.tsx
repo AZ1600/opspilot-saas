@@ -14,7 +14,7 @@ export default function LoginPage() {
               OpsPilot maps your identity to the workspace role model.
             </p>
           </div>
-          <SignIn fallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />
+          <SignIn fallbackRedirectUrl="/app" signUpFallbackRedirectUrl="/app" />
         </section>
       </main>
     );
