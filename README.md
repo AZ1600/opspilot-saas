@@ -1,266 +1,458 @@
 # OpsPilot SaaS
 
-## Overview
+## AI-Assisted Operations Platform for Small Service Businesses
 
-OpsPilot is an AI-powered operations platform for small service businesses.
+OpsPilot is a production-style SaaS operations platform designed to help small service businesses turn fragmented operational signals into prioritized, owner-approved actions.
 
-The platform connects business signals from email, invoices, customer messages, internal notes, and operational workflows, then turns those signals into owner-approved actions, revenue recovery opportunities, customer-risk alerts, and execution tasks.
+The platform brings together business signals from inboxes, invoices, customer messages, internal notes and operational workflows, then converts them into structured actions, revenue opportunities, customer-risk alerts and execution tasks.
 
-Think of it as:
+Rather than allowing AI-generated recommendations to automatically become business actions, OpsPilot keeps important actions behind an explicit human approval boundary.
 
 ```text
-Gmail + QuickBooks + Notion + Slack + AI operations assistant
+Business Signal
+      ↓
+Classification
+      ↓
+Recommendation
+      ↓
+Human Approval
+      ↓
+Execution
+      ↓
+Impact Tracking
 ```
 
-The project was built as part of my Software Engineering, Cloud SaaS, AI Engineering, and Platform Engineering portfolio to demonstrate full-stack product development, backend architecture, role-based access control, AI-assisted workflow automation, database design, and deployment readiness.
+The project demonstrates practical full-stack SaaS engineering across authentication, multi-tenancy, role-based access control, PostgreSQL persistence, AI-assisted workflows, billing foundations, CI/CD and cloud deployment.
 
 ---
 
-## Production SaaS Capabilities
+## Problem
 
-OpsPilot includes production-style SaaS foundations beyond a static demo:
+Small service businesses often operate across several disconnected systems:
 
-* Clerk authentication for real user sign-in
-* Neon Postgres persistence for deployed workspace data
-* Multi-tenant workspace resolution per authenticated user
-* Owner, manager, and staff role-based access control
-* Invited-user workspace joining by verified email identity
-* Owner-approved AI action workflow with approve and dismiss controls
-* Stripe Checkout, Customer Portal, and webhook billing foundation
-* Runtime health endpoint for deployment and dependency diagnostics
-* GitHub Actions CI for tests, linting, typechecking, and production builds
-* Vercel deployment connected to managed Postgres
+- Email
+- Invoices
+- Customer messages
+- Internal notes
+- Calendars
+- Operational tools
 
----
+Important signals can easily be missed.
 
-## Case Study
+A lead may remain unanswered, an invoice can become overdue, a customer complaint may go unnoticed, or an operational task may never reach the right person.
 
-### Problem
-
-Small service businesses often lose money because important work is spread across inboxes, invoices, calendars, notes, and customer messages. Leads go unanswered, invoices become overdue, complaints are missed, and owners do not always have time to review every operational signal manually.
-
-### Solution
-
-OpsPilot turns messy business signals into a prioritized operations queue. It scans messages, identifies revenue leaks and customer risks, drafts the next action, and keeps every outbound action behind an owner approval step.
-
-### Engineering Approach
-
-The application was designed as a production-style SaaS rather than a static prototype. Authentication is handled with Clerk, workspace data is persisted in Neon Postgres, and a repository layer keeps local JSON development separate from deployed PostgreSQL storage. Server-side permission checks enforce owner, manager, and staff access levels across billing, team management, inbox scanning, and action approval.
-
-### Result
-
-The project demonstrates a complete SaaS workflow: authenticated users join tenant workspaces, owners invite teammates, business signals generate AI-assisted actions, approved work moves into an execution queue, and the impact ledger tracks estimated recovered revenue and time saved.
-
-### Public Demo and SaaS Access
-
-OpsPilot separates portfolio exploration from real tenant access:
-
-* `/` is the public product overview.
-* `/demo` opens a read-only workspace backed by bundled sample data, with no account required.
-* `/login` uses Clerk when production authentication is configured.
-* `/app` is the authenticated tenant workspace and retains server-side role and permission checks.
-
-The public demo does not load a private workspace or call mutation APIs. Approval, execution, billing, connector, settings, and reset controls are disabled, while the authenticated SaaS experience remains protected.
+Owners often have the information required to act, but not a single system that turns those signals into a prioritized operational workflow.
 
 ---
 
-## Platform Features
+## Solution
 
-OpsPilot automates and demonstrates:
+OpsPilot converts fragmented business information into an operations queue.
 
-* AI-assisted business signal ingestion
-* Manual operations note classification
-* Gmail-style inbox importing and scanning
-* Revenue leak detection
-* Customer-risk detection
-* Owner approval workflow
-* Execution queue for approved actions
-* Impact ledger for estimated revenue and time saved
-* Team roles and permissions
-* Clerk-ready production authentication
-* SaaS billing-plan interface
-* PostgreSQL-ready repository layer
-* Live Vercel deployment connected to Neon Postgres
-* Health checks and runtime configuration diagnostics
-* GitHub Actions CI for test, lint, typecheck, and build validation
+The platform can:
+
+- Ingest business notes and inbox-style messages
+- Classify operational signals
+- Identify possible revenue leaks
+- Detect customer-risk signals
+- Generate recommended actions
+- Route decisions through human approval
+- Queue approved work for execution
+- Track estimated business impact
+- Maintain an operational audit trail
+
+The goal is not to replace human decision-making.
+
+Instead, OpsPilot provides structured evidence and recommendations while keeping the business owner in control of important actions.
+
+---
+
+## Core Workflow
+
+```text
+Email / Note / Business Signal
+            ↓
+      Signal Ingestion
+            ↓
+ Classification + Business Rules
+            ↓
+ ┌──────────┼─────────────┐
+ ↓          ↓             ↓
+Action   Revenue Leak   Customer Risk
+            ↓
+      Workspace Queue
+            ↓
+       Human Review
+            ↓
+     Approve / Dismiss
+            ↓
+       Execution Job
+            ↓
+       Impact Ledger
+```
+
+---
+
+## Production-Style SaaS Architecture
+
+OpsPilot was designed as more than a static dashboard.
+
+The project includes SaaS foundations such as:
+
+- Multi-tenant workspaces
+- Clerk authentication integration
+- Owner, manager and staff roles
+- Server-side permission enforcement
+- Neon PostgreSQL persistence
+- Repository abstraction between local and hosted storage
+- Owner-approved AI-assisted actions
+- Execution queues
+- Audit events
+- Stripe billing foundations
+- Runtime health checks
+- GitHub Actions CI
+- Vercel deployment support
 
 ---
 
 ## Architecture
 
+```text
 User / Business Owner
-
-↓
-
-Next.js SaaS Dashboard
-
-↓
-
-API Routes
-
-↓
-
+        │
+        ▼
+Next.js + React Application
+        │
+        ▼
+Authentication + Workspace Resolution
+        │
+        ▼
+Next.js API Routes
+        │
+        ▼
 AI Classification + Business Rules
-
-↓
-
+        │
+        ▼
 Repository Layer
-
-↓
-
-Local JSON Storage or PostgreSQL
+        │
+        ├───────────────┐
+        ▼               ▼
+Local JSON          PostgreSQL
+Development         Neon / Hosted
+        │
+        ▼
+Actions / Risks / Approvals
+        │
+        ▼
+Execution + Impact Tracking
+```
 
 ### Application Layers
 
-* Frontend
-  * Next.js App Router
-  * React command center dashboard
-  * Onboarding flow
-  * Role-aware interface controls
-  * Inbox, ingestion, approval, impact, and execution views
+#### Frontend
 
-* Backend
-  * Next.js API routes
-  * Clerk-ready authentication boundary
-  * Signed-cookie prototype authentication
-  * Server-side permission checks
-  * Workspace repository abstraction
-  * Runtime health checks
+- Next.js App Router
+- React dashboard
+- Workspace onboarding
+- Role-aware navigation
+- Daily business brief
+- Inbox
+- Revenue-risk views
+- Action approval interface
+- Execution queue
+- Impact ledger
 
-* AI / Automation
-  * Rule-based classifier for free local development
-  * Optional OpenAI classifier boundary
-  * Business action generation
-  * Revenue leak detection
-  * Customer-risk detection
+#### Backend
 
-* Data Layer
-  * Local JSON repository for development
-  * Neon Postgres for production-style persistence
-  * Database schema for tenants, users, actions, risks, ingestions, approvals, impact entries, and execution jobs
+- Next.js API routes
+- Authentication boundary
+- Workspace resolution
+- Server-side authorization
+- Repository abstraction
+- Runtime configuration validation
+- Health checks
 
-* Integrations
-  * Mock Gmail connector for safe demos
-  * Real Gmail OAuth foundation
-  * Read-only Gmail import scope
+#### AI and Automation
 
----
+- Deterministic rule-based classifier for local development
+- Optional OpenAI integration boundary
+- Structured business-action generation
+- Revenue-leak detection
+- Customer-risk detection
+- Human approval workflow
 
-## Technologies Used
+#### Data Layer
 
-* Next.js
-* React
-* TypeScript
-* Node.js
-* PostgreSQL
-* Neon
-* Clerk
-* SQL
-* Git
-* GitHub
-* GitHub Actions
-* Vercel-ready deployment structure
-* OpenAI API integration boundary
-* Google Gmail OAuth integration boundary
-* Vitest
-* ESLint
+- Local JSON repository for development
+- Neon PostgreSQL for hosted persistence
+- Multi-tenant workspace data model
+- Operational audit data
+- Execution records
+- Impact tracking
+
+#### Integrations
+
+- Gmail-style demonstration connector
+- Gmail OAuth foundation
+- Read-only Gmail import design
+- Stripe Checkout foundation
+- Stripe Customer Portal foundation
+- Stripe webhook synchronization
 
 ---
 
-## Core Product Workflows
+## Key Features
+
+### Multi-Tenant Workspaces
+
+Authenticated users are resolved into their workspace rather than accessing one shared global dataset.
+
+Workspace data is separated so users operate inside their assigned business context.
+
+---
+
+### Role-Based Access Control
+
+OpsPilot defines three primary roles:
+
+```text
+Owner
+Manager
+Staff
+```
+
+Permissions are enforced server-side for sensitive operations including:
+
+- Team management
+- Billing
+- Inbox scanning
+- Action approval
+- Workspace administration
+
+---
 
 ### Business Signal Ingestion
 
+Users can submit operational notes or import inbox-style messages.
+
 ```text
-Pasted text or inbox message
-↓
+Business Signal
+      ↓
 Classifier
-↓
-Structured action, revenue, and risk records
-↓
-Workspace repository
-↓
-Dashboard update
+      ↓
+Structured Records
+      ↓
+Workspace Repository
+      ↓
+Dashboard Update
 ```
 
-### Approval Workflow
+The system can generate:
 
-```text
-AI recommendation
-↓
-Owner approves or dismisses
-↓
-Approval event is recorded
-↓
-Impact entry is created
-↓
-Execution job is queued
-```
-
-### Execution Workflow
-
-```text
-Approved action
-↓
-Queued job
-↓
-Completed or failed status
-↓
-Operational accountability
-```
+- Business actions
+- Revenue-leak records
+- Customer-risk records
 
 ---
 
-## Features Implemented
+### Revenue Leak Detection
 
-* Command center dashboard
-* Daily business brief
-* Manual ingestion workflow
-* Gmail-style inbox scan workflow
-* Revenue leak dashboard
-* Customer-risk dashboard
-* Action approval and dismissal
-* Approval audit events
-* Impact ledger
-* Execution queue
-* Team roles: owner, manager, and staff
-* Clerk-ready login flow
-* Billing-plan interface
-* Workspace onboarding
-* Settings management
-* Local file repository
-* PostgreSQL repository
-* Database schema
-* Runtime health endpoint
-* GitHub Actions CI
-* Unit tests for classifier, config, permissions, and workspace flow
+OpsPilot can identify signals that may represent missed revenue opportunities.
+
+Examples include:
+
+- Overdue invoices
+- Unanswered enquiries
+- Missed follow-ups
+- Unresolved customer requests
+
+The resulting signal is presented for human review rather than automatically acted upon.
 
 ---
 
-## Database Tables
+### Customer Risk Detection
 
-The PostgreSQL schema provisions:
+Operational messages can be classified into customer-risk records so important issues can be surfaced and prioritized.
 
-* businesses
-* users
-* connected_accounts
-* customers
-* business_actions
-* revenue_leaks
-* customer_risks
-* inbox_messages
-* ingestions
-* knowledge_documents
-* timeline_events
-* approval_events
-* impact_entries
-* execution_jobs
+---
+
+### Human Approval Workflow
+
+AI-assisted recommendations remain behind a human approval boundary.
+
+```text
+Recommendation
+      ↓
+Owner Review
+      ↓
+Approve or Dismiss
+      ↓
+Audit Event
+      ↓
+Execution Queue
+```
+
+Approval state is recorded so operational decisions remain traceable.
+
+---
+
+### Execution Queue
+
+Approved actions are converted into execution jobs.
+
+Jobs can move through states such as:
+
+```text
+Queued
+  ↓
+Completed
+
+or
+
+Queued
+  ↓
+Failed
+```
+
+This provides visibility into what was recommended, what was approved and what actually happened.
+
+---
+
+### Impact Ledger
+
+OpsPilot maintains an impact ledger for estimated operational outcomes such as:
+
+- Revenue recovered
+- Time saved
+- Actions completed
+- Operational opportunities identified
+
+The ledger is designed to make automation impact visible rather than treating AI recommendations as isolated outputs.
+
+---
+
+## Public Demo and Authenticated SaaS
+
+OpsPilot separates portfolio exploration from authenticated tenant access.
+
+```text
+/
+```
+
+Public product overview.
+
+```text
+/demo
+```
+
+Read-only portfolio workspace using bundled demonstration data.
+
+No authentication is required.
+
+```text
+/login
+```
+
+Authentication entry point when Clerk is configured.
+
+```text
+/app
+```
+
+Authenticated SaaS workspace with server-side permissions.
+
+The public demo does not load private workspace data and does not call mutation endpoints.
+
+Actions including approvals, execution, billing changes, connector configuration, settings changes and workspace reset are disabled in demonstration mode.
+
+---
+
+## Technology Stack
+
+### Frontend
+
+- Next.js
+- React
+- TypeScript
+
+### Backend
+
+- Next.js API Routes
+- Node.js
+- TypeScript
+
+### Database
+
+- PostgreSQL
+- Neon
+- SQL
+
+### Authentication
+
+- Clerk
+- Server-side RBAC
+
+### AI and Automation
+
+- Rule-based classification
+- OpenAI integration boundary
+- Structured recommendation workflows
+- Human-in-the-loop approval
+
+### SaaS
+
+- Stripe Checkout foundation
+- Stripe Customer Portal
+- Stripe webhook integration
+- Multi-tenant workspace model
+
+### DevOps
+
+- Git
+- GitHub
+- GitHub Actions
+- Vercel
+- Environment-based configuration
+
+### Testing
+
+- Vitest
+- ESLint
+- TypeScript compiler
+- Production build validation
+
+---
+
+## Database Model
+
+The PostgreSQL schema includes:
+
+```text
+businesses
+users
+connected_accounts
+customers
+business_actions
+revenue_leaks
+customer_risks
+inbox_messages
+ingestions
+knowledge_documents
+timeline_events
+approval_events
+impact_entries
+execution_jobs
+```
+
+These tables support the complete operational workflow from signal ingestion through approval, execution and impact tracking.
 
 ---
 
 ## Validation
 
-The project was validated using:
+The project includes automated validation across the application lifecycle.
+
+Run:
 
 ```bash
 npm run test
@@ -270,22 +462,14 @@ npm run build
 npm run check:config
 ```
 
-Database readiness can be checked using:
+Database checks:
 
 ```bash
 npm run db:schema
 npm run db:check
 ```
 
-The live deployment health endpoint verifies:
-
-```text
-repository: postgres
-reachable: true
-mode: postgres
-```
-
-GitHub Actions runs the main validation pipeline automatically:
+GitHub Actions automatically runs:
 
 ```bash
 npm ci
@@ -297,27 +481,47 @@ npm run build
 
 ---
 
+## Runtime Health
+
+The application includes a health endpoint for deployment and database diagnostics.
+
+```text
+/api/health
+```
+
+A healthy PostgreSQL-backed deployment reports information such as:
+
+```text
+repository: postgres
+reachable: true
+mode: postgres
+```
+
+This makes database and runtime configuration problems easier to identify after deployment.
+
+---
+
 ## Local Development
 
-Install dependencies:
+### Install dependencies
 
 ```bash
 npm install
 ```
 
-Start the development server:
+### Start development server
 
 ```bash
 npm run dev
 ```
 
-Open the app:
+Open:
 
 ```text
 http://localhost:3000
 ```
 
-Check runtime health:
+Health endpoint:
 
 ```text
 http://localhost:3000/api/health
@@ -325,27 +529,28 @@ http://localhost:3000/api/health
 
 ---
 
-## Environment Variables
+## Local Development Configuration
 
-Local development uses safe defaults and does not require paid APIs.
+OpsPilot can run locally without paid AI APIs.
 
-```text
+Example configuration:
+
+```env
 OPSPILOT_AI_PROVIDER=rules
 OPSPILOT_REPOSITORY=file
 OPSPILOT_DEV_ROLE=owner
 OPSPILOT_SESSION_SECRET=replace-with-a-long-random-secret
 ```
 
-Optional production authentication with Clerk:
+This allows the core product workflow to be demonstrated without external AI services or a hosted database.
 
-```text
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
-CLERK_SECRET_KEY=sk_...
-```
+---
 
-Production-style PostgreSQL mode:
+## PostgreSQL Configuration
 
-```text
+Hosted persistence can use PostgreSQL through Neon.
+
+```env
 OPSPILOT_REPOSITORY=postgres
 DATABASE_URL=postgres://...
 DATABASE_SSL=true
@@ -353,25 +558,58 @@ OPSPILOT_SESSION_SECRET=...
 OPSPILOT_TOKEN_ENCRYPTION_KEY=...
 ```
 
-Optional OpenAI classification:
+Database credentials are provided through environment variables and are not stored in the repository.
 
-```text
+---
+
+## Authentication Configuration
+
+Clerk can be configured using:
+
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_SECRET_KEY=sk_...
+```
+
+Sensitive authorization checks remain server-side.
+
+---
+
+## Optional AI Configuration
+
+The deterministic classifier can be replaced by the OpenAI integration boundary when credentials are configured.
+
+```env
 OPSPILOT_AI_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4.1-mini
 ```
 
-Optional Gmail OAuth:
+AI output remains subject to the same human approval workflow.
 
-```text
+---
+
+## Gmail OAuth Foundation
+
+Optional Gmail integration uses OAuth credentials:
+
+```env
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 GOOGLE_REDIRECT_URI=https://your-domain.com/api/connectors/gmail/callback
 ```
 
-Optional Stripe subscriptions:
+The integration is designed around read-only Gmail access.
 
-```text
+Email sending remains disabled until a separate safety and permission review is completed.
+
+---
+
+## Stripe Billing Foundation
+
+Stripe configuration supports the SaaS billing foundation:
+
+```env
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_STARTER=price_...
@@ -379,97 +617,65 @@ STRIPE_PRICE_GROWTH=price_...
 STRIPE_PRICE_PRO=price_...
 ```
 
+The implementation includes foundations for:
+
+- Checkout
+- Customer Portal
+- Subscription plans
+- Webhook-based plan synchronization
+
 ---
 
 ## Deployment
 
-This project is ready to be deployed from GitHub to Vercel.
+OpsPilot supports deployment from GitHub to Vercel with PostgreSQL-backed persistence through Neon.
 
-The live deployment is connected to Neon Postgres through Vercel environment variables. No database credentials are stored in the repository.
+Typical deployment architecture:
 
-Recommended deployment flow:
+```text
+GitHub
+   ↓
+Vercel
+   ↓
+Next.js Application
+   ↓
+Neon PostgreSQL
+```
 
-* Push source code to GitHub
-* Import the GitHub repository into Vercel
-* Attach Neon Postgres as the managed database provider
-* Add environment variables in Vercel
-* Add Clerk keys when production authentication is enabled
-* Run the database schema
-* Verify `/api/health`
-* Keep AI and Gmail OAuth disabled until credentials are configured
+Production configuration should include:
 
-For a production-style deployment:
-
-* Use PostgreSQL instead of local file storage
-* Use Clerk for production sign-in
-* Set a strong session secret
-* Set a token encryption key before enabling Gmail OAuth
-* Use Gmail read-only scope only
-* Keep email sending disabled until a separate safety review is completed
-
----
-
-## Skills Demonstrated
-
-### Full-Stack Software Engineering
-
-* Next.js App Router
-* React dashboard development
-* TypeScript domain modeling
-* API route development
-* Form and workflow handling
-
-### Backend Engineering
-
-* Repository pattern
-* Server-side permissions
-* Runtime configuration validation
-* Health check endpoint
-* PostgreSQL persistence layer
-
-### AI Engineering
-
-* AI-assisted classification workflow
-* Rule-based fallback system
-* Structured business action generation
-* OpenAI integration boundary
-* Human approval workflow for AI recommendations
-
-### SaaS Product Engineering
-
-* Multi-role team access
-* Billing-plan interface
-* Stripe subscription checkout foundation
-* Stripe webhook plan synchronization
-* Tenant workspace model
-* Approval audit trail
-* Impact tracking
-* Execution queue
-
-### DevOps and Deployment
-
-* GitHub repository setup
-* GitHub Actions CI
-* Vercel-ready application structure
-* Environment variable management
-* Production database preparation
+- PostgreSQL instead of local file storage
+- Strong session secrets
+- Secure environment variables
+- Clerk authentication when enabled
+- Token encryption before enabling OAuth integrations
+- Read-only Gmail scopes
+- Runtime health verification
+- No credentials committed to source control
 
 ---
 
-## Future Improvements
+## Security and Safety Principles
 
-* Add production authentication with organization membership
-* Connect a hosted PostgreSQL database
-* Deploy the app to Vercel
-* Configure Clerk production authentication keys
-* Add real Gmail OAuth import in production
-* Add QuickBooks integration
-* Add calendar integration
-* Add Slack or Microsoft Teams integration
-* Add confirmed revenue tracking
-* Add background job processing
-* Add notification workflows
-* Add observability and error monitoring
+### Human Approval Before Execution
+
+AI recommendations do not automatically execute business actions.
+
+### Server-Side Authorization
+
+Sensitive operations are protected by server-side permission checks.
+
+### Credential Separation
+
+Secrets are supplied through environment variables rather than committed to GitHub.
+
+### Demo Isolation
+
+The public demo uses sample data and does not expose private tenant workspaces.
+
+### Least-Privilege Integrations
+
+External integrations are designed around the minimum required permissions, such as read-only Gmail access.
 
 ---
 
@@ -521,12 +727,120 @@ For a production-style deployment:
 
 ---
 
+## Skills Demonstrated
+
+### Full-Stack Software Engineering
+
+- Next.js App Router
+- React application development
+- TypeScript domain modeling
+- API route development
+- Workflow-oriented product design
+
+### Backend Engineering
+
+- Repository pattern
+- PostgreSQL persistence
+- Server-side authorization
+- Runtime configuration
+- Health checks
+- Multi-tenant data modeling
+
+### SaaS Engineering
+
+- Workspace architecture
+- Multi-role access
+- Authentication integration
+- Billing foundations
+- Subscription lifecycle foundations
+- Audit trails
+
+### AI Engineering
+
+- Structured AI-assisted classification
+- Rule-based fallback
+- Human-in-the-loop workflows
+- Recommendation generation
+- AI integration boundaries
+
+### DevOps and Cloud Deployment
+
+- GitHub Actions CI
+- Automated testing
+- Type checking
+- Production build validation
+- Vercel deployment
+- Managed PostgreSQL
+- Environment variable management
+
+---
+
+## Engineering Principles
+
+### AI Assists, Humans Decide
+
+AI-generated recommendations remain advisory until explicitly approved.
+
+### Build Deterministic Foundations First
+
+The application can run using deterministic classification without requiring a paid AI service.
+
+### Separate Development and Production Storage
+
+The repository layer allows local file storage for development while using PostgreSQL for hosted environments.
+
+### Make Operational Impact Visible
+
+Approvals, execution jobs and impact records are retained so recommendations can be traced through their operational lifecycle.
+
+---
+
+## Roadmap
+
+Planned improvements include:
+
+- Production organization membership
+- Real Gmail OAuth import
+- QuickBooks integration
+- Calendar integration
+- Slack or Microsoft Teams integration
+- Background job processing
+- Notification workflows
+- Confirmed revenue tracking
+- Production observability and error monitoring
+- Expanded integration test coverage
+- Additional operational connectors
+
+---
+
+## Project Status
+
+OpsPilot currently demonstrates the core lifecycle of a production-style SaaS operations platform:
+
+```text
+Authenticated Workspace
+        ↓
+Business Signal
+        ↓
+Classification
+        ↓
+Recommended Action
+        ↓
+Human Approval
+        ↓
+Execution Queue
+        ↓
+Impact Tracking
+```
+
+The project intentionally separates deterministic application logic, optional AI services and external integrations so individual components can be developed and tested without requiring every third-party service to be active.
+
+---
+
 ## Author
 
-Olawale Azeez
+**Olawale Azeez**
 
-AWS Certified Solutions Architect - Associate
-
+AWS Certified Solutions Architect – Associate
 AWS Certified Cloud Practitioner
-
-Aspiring Platform Engineer | Cloud Engineer | DevOps Engineer | Software Engineer
+Cloud Engineer | Platform Engineer | DevOps Engineer | Software Engineer
