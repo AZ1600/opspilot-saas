@@ -840,7 +840,7 @@ The project intentionally separates deterministic application logic, optional AI
 ## Author
 
 **Olawale Azeez**
-
+AWS Certified Developer  – Associate
 AWS Certified Solutions Architect – Associate
 AWS Certified Cloud Practitioner
 Cloud Engineer | Platform Engineer | DevOps Engineer | Software Engineer
