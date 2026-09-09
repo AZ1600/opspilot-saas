@@ -1,12 +1,25 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
+import { isDemoAuthAllowed } from "@/lib/server/config";
 
 const clerk = clerkMiddleware();
 
 export default function proxy(request: NextRequest, event: NextFetchEvent) {
-  if (!isClerkConfigured()) {
-    return NextResponse.next();
+if (!isClerkConfigured()) {
+  if (!isDemoAuthAllowed()) {
+    return new NextResponse(
+      "Authentication service unavailable.",
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      },
+    );
   }
+
+  return NextResponse.next();
+}
 
   return clerk(request, event);
 }

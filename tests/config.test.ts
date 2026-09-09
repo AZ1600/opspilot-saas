@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi, } from "vitest";
 import { getRuntimeConfigReport } from "@/lib/server/config";
 
 const originalEnv = { ...process.env };
@@ -14,6 +14,7 @@ function restoreEnv() {
 }
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   restoreEnv();
 });
 
@@ -129,4 +130,23 @@ describe("getRuntimeConfigReport", () => {
 
     expect(report.billingMode).toBe("stripe");
   });
+  it("rejects demo authentication in production", () => {
+  vi.stubEnv("NODE_ENV", "production");
+  process.env.OPSPILOT_SESSION_SECRET =
+    "test-production-session-secret";
+
+  delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  delete process.env.CLERK_SECRET_KEY;
+
+  const report = getRuntimeConfigReport();
+
+  expect(report.ok).toBe(false);
+  expect(report.authMode).toBe("demo");
+  expect(report.checks).toContainEqual(
+    expect.objectContaining({
+      key: "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY/CLERK_SECRET_KEY",
+      severity: "error",
+    }),
+  );
+});
 });
