@@ -56,23 +56,37 @@ export function getRuntimeConfigReport(): RuntimeConfigReport {
     });
   }
 
-  if (environment === "production") {
-    if (!process.env.OPSPILOT_SESSION_SECRET) {
-      checks.push({
-        key: "OPSPILOT_SESSION_SECRET",
-        message: "Set a strong session secret in production.",
-        severity: "error",
-      });
-    }
-
-    if (repository === "file") {
-      checks.push({
-        key: "OPSPILOT_REPOSITORY",
-        message: "File storage is for demos; use postgres for production.",
-        severity: "warning",
-      });
-    }
+if (environment === "production") {
+  if (!process.env.OPSPILOT_SESSION_SECRET) {
+    checks.push({
+      key: "OPSPILOT_SESSION_SECRET",
+      message:
+        "Set a strong session secret in production.",
+      severity: "error",
+    });
   }
+
+  if (
+    authMode !== "clerk" &&
+    !hasPartialClerkConfig()
+  ) {
+    checks.push({
+      key: "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY/CLERK_SECRET_KEY",
+      message:
+        "Clerk authentication is required in production.",
+      severity: "error",
+    });
+  }
+
+  if (repository === "file") {
+    checks.push({
+      key: "OPSPILOT_REPOSITORY",
+      message:
+        "File storage is for demos; use postgres for production.",
+      severity: "warning",
+    });
+  }
+}
 
   if (hasPartialGoogleOAuthConfig()) {
     checks.push({
@@ -173,4 +187,10 @@ function stripeValues() {
     process.env.STRIPE_PRICE_GROWTH,
     process.env.STRIPE_PRICE_PRO,
   ];
+}
+
+export function isDemoAuthAllowed(
+  environment = process.env.NODE_ENV ?? "development",
+) {
+  return environment !== "production";
 }

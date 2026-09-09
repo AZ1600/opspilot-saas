@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { demoWorkspace } from "@/lib/demo-data";
 import { getWorkspaceRepository } from "@/lib/server/repository";
 import type { WorkspaceSnapshot, WorkspaceUser } from "@/lib/types";
+import { isDemoAuthAllowed } from "@/lib/server/config";
 
 export const sessionCookieName = "opspilot_session";
 export type AuthMode = "clerk" | "demo";
@@ -24,6 +25,13 @@ export async function requireSession(): Promise<RequestSession> {
 
     return sessionFromClerkUser(clerkUser);
   }
+
+  if (!isDemoAuthAllowed()) {
+  throw new Error(
+    "Demo authentication is disabled in production.",
+  );
+}
+
 
   const cookieSession = await readSessionCookie();
 

@@ -2,6 +2,8 @@ import { CommandCenter } from "@/components/command-center";
 import { getAuthMode, presentWorkspace, requireSession } from "@/lib/server/auth";
 import { getWorkspaceRepository } from "@/lib/server/repository";
 
+export const dynamic = "force-dynamic";
+
 export default async function WorkspacePage() {
   const session = await requireSession();
   const repository = getWorkspaceRepository();
