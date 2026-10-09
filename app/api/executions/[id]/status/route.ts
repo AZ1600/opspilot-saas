@@ -9,7 +9,10 @@ export const runtime = "nodejs";
 const allowedStatuses = new Set<ExecutionStatus>(["completed", "failed"]);
 
 function isExecutionStatus(status: unknown): status is ExecutionStatus {
-  return typeof status === "string" && allowedStatuses.has(status as ExecutionStatus);
+  return (
+    typeof status === "string" &&
+    allowedStatuses.has(status as ExecutionStatus)
+  );
 }
 
 export async function PATCH(
@@ -23,9 +26,25 @@ export async function PATCH(
   }
 
   const { id } = await context.params;
-  const body = (await request.json()) as { status?: ExecutionStatus };
 
-  if (!isExecutionStatus(body.status)) {
+  let body: unknown;
+
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Request body must be valid JSON." },
+      { status: 400 },
+    );
+  }
+
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    Array.isArray(body) ||
+    !("status" in body) ||
+    !isExecutionStatus(body.status)
+  ) {
     return NextResponse.json(
       { error: "Status must be completed or failed." },
       { status: 400 },
@@ -33,6 +52,7 @@ export async function PATCH(
   }
 
   const repository = getWorkspaceRepository();
+
   const workspace = await repository.updateExecutionJobStatus(
     session.businessId,
     id,
@@ -40,8 +60,13 @@ export async function PATCH(
   );
 
   if (!workspace) {
-    return NextResponse.json({ error: "Execution job not found." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Execution job not found." },
+      { status: 404 },
+    );
   }
 
-  return NextResponse.json({ workspace: presentWorkspace(workspace, session) });
+  return NextResponse.json({
+    workspace: presentWorkspace(workspace, session),
+  });
 }
