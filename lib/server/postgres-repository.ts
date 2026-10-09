@@ -194,69 +194,55 @@ async function readWorkspaceFromDatabase(
     return null;
   }
 
-  const [
-    users,
-    actions,
-    revenueLeaks,
-    customerRisks,
-    connectedAccounts,
-    inboxMessages,
-    ingestions,
-    knowledgeDocuments,
-    timeline,
-    approvalEvents,
-    impactEntries,
-    executionJobs,
-  ] = await Promise.all([
-    client.query<UserRow>(
-      "select * from users where business_id = $1 order by created_at asc",
-      [businessId],
-    ),
-    client.query<ActionRow>(
-      "select * from business_actions where business_id = $1 order by created_at desc",
-      [businessId],
-    ),
-    client.query<RevenueLeakRow>(
-      "select * from revenue_leaks where business_id = $1 order by created_at desc",
-      [businessId],
-    ),
-    client.query<CustomerRiskRow>(
-      "select * from customer_risks where business_id = $1 order by created_at desc",
-      [businessId],
-    ),
-    client.query<ConnectedAccountRow>(
-      "select * from connected_accounts where business_id = $1 order by created_at asc",
-      [businessId],
-    ),
-    client.query<InboxMessageRow>(
-      "select * from inbox_messages where business_id = $1 order by created_at asc",
-      [businessId],
-    ),
-    client.query<IngestionRow>(
-      "select * from ingestions where business_id = $1 order by created_at desc",
-      [businessId],
-    ),
-    client.query<KnowledgeDocumentRow>(
-      "select * from knowledge_documents where business_id = $1 order by created_at asc",
-      [businessId],
-    ),
-    client.query<TimelineEventRow>(
-      "select * from timeline_events where business_id = $1 order by created_at asc",
-      [businessId],
-    ),
-    client.query<ApprovalEventRow>(
-      "select * from approval_events where business_id = $1 order by created_at desc",
-      [businessId],
-    ),
-    client.query<ImpactEntryRow>(
-      "select * from impact_entries where business_id = $1 order by created_at desc",
-      [businessId],
-    ),
-    client.query<ExecutionJobRow>(
-      "select * from execution_jobs where business_id = $1 order by created_at desc",
-      [businessId],
-    ),
-  ]);
+  // Await each query before reusing the connection, including inside transactions.
+  const users = await client.query<UserRow>(
+    "select * from users where business_id = $1 order by created_at asc",
+    [businessId],
+  );
+  const actions = await client.query<ActionRow>(
+    "select * from business_actions where business_id = $1 order by created_at desc",
+    [businessId],
+  );
+  const revenueLeaks = await client.query<RevenueLeakRow>(
+    "select * from revenue_leaks where business_id = $1 order by created_at desc",
+    [businessId],
+  );
+  const customerRisks = await client.query<CustomerRiskRow>(
+    "select * from customer_risks where business_id = $1 order by created_at desc",
+    [businessId],
+  );
+  const connectedAccounts = await client.query<ConnectedAccountRow>(
+    "select * from connected_accounts where business_id = $1 order by created_at asc",
+    [businessId],
+  );
+  const inboxMessages = await client.query<InboxMessageRow>(
+    "select * from inbox_messages where business_id = $1 order by created_at asc",
+    [businessId],
+  );
+  const ingestions = await client.query<IngestionRow>(
+    "select * from ingestions where business_id = $1 order by created_at desc",
+    [businessId],
+  );
+  const knowledgeDocuments = await client.query<KnowledgeDocumentRow>(
+    "select * from knowledge_documents where business_id = $1 order by created_at asc",
+    [businessId],
+  );
+  const timeline = await client.query<TimelineEventRow>(
+    "select * from timeline_events where business_id = $1 order by created_at asc",
+    [businessId],
+  );
+  const approvalEvents = await client.query<ApprovalEventRow>(
+    "select * from approval_events where business_id = $1 order by created_at desc",
+    [businessId],
+  );
+  const impactEntries = await client.query<ImpactEntryRow>(
+    "select * from impact_entries where business_id = $1 order by created_at desc",
+    [businessId],
+  );
+  const executionJobs = await client.query<ExecutionJobRow>(
+    "select * from execution_jobs where business_id = $1 order by created_at desc",
+    [businessId],
+  );
 
   const teamMembers = users.rows.map(mapUser);
   const owner = teamMembers.find((user) => user.role === "owner") ?? teamMembers[0];
@@ -727,13 +713,17 @@ async function updateActionDecision(
   return withTransaction(async (client) => {
     await ensureWorkspaceInTransaction(client, businessId);
     const actionResult = await client.query<ActionRow>(
-      "select * from business_actions where business_id = $1 and id = $2",
+      "select * from business_actions where business_id = $1 and id = $2 for update",
       [businessId, actionId],
     );
     const action = actionResult.rows[0];
 
     if (!action) {
       return null;
+    }
+
+    if (action.status === status) {
+      return readWorkspaceFromDatabaseOrThrow(client, businessId);
     }
 
     await client.query(

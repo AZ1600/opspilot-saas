@@ -12,6 +12,21 @@ jobs:
     name: Test, security, lint, typecheck, and build
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_DB: opspilot_test
+          POSTGRES_USER: opspilot_test
+          POSTGRES_PASSWORD: opspilot_local_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U opspilot_test -d opspilot_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -31,6 +46,11 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+      - name: Run PostgreSQL integration tests
+        env:
+          OPSPILOT_TEST_DATABASE_URL: postgresql://opspilot_test:opspilot_local_test@127.0.0.1:55432/opspilot_test
+        run: npm run test:postgres
 
       - name: Run lint
         run: npm run lint
