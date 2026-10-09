@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "check:config": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/check-config.mjs",
     "db:schema": "node scripts/apply-schema.mjs",
-    "db:check": "node scripts/check-database.mjs"
+    "db:check": "node scripts/check-database.mjs",
+    "test:postgres": "vitest run --config vitest.postgres.config.mts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.5.9",

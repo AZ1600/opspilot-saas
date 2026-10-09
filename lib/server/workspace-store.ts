@@ -365,6 +365,10 @@ export async function updateActionDecision(
     return null;
   }
 
+  if (action.status === status) {
+    return workspace;
+  }
+
   const event: ApprovalEvent = {
     id: `approval-${Date.now()}`,
     actionId,
