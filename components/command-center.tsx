@@ -366,11 +366,15 @@ export function CommandCenter({
         body: JSON.stringify(onboarding),
       });
 
-      if (!response.ok) {
+      const alreadySetUp = response.status === 409;
+      const workspaceResponse = alreadySetUp
+        ? await fetch("/api/workspace", { cache: "no-store" })
+        : response;
+      if (!workspaceResponse.ok) {
         throw new Error("Onboarding failed");
       }
 
-      const result = (await response.json()) as {
+      const result = (await workspaceResponse.json()) as {
         workspace: WorkspaceSnapshot;
       };
 
@@ -381,8 +385,10 @@ export function CommandCenter({
         niche: result.workspace.niche,
         primaryPainPoint: result.workspace.primaryPainPoint,
       });
-      setView("inbox");
-      notify("Workspace created. Your inbox simulator is ready.");
+      setView(alreadySetUp ? "settings" : "inbox");
+      notify(alreadySetUp
+        ? "This workspace is already set up. Use Settings to change its profile."
+        : "Workspace set up. Your inbox simulator is ready.");
     } catch {
       notify("Could not create the workspace. Check the fields and try again.");
     } finally {

@@ -2,6 +2,7 @@ import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { assertAuthenticatedIdentity, authenticatedBusinessId, AuthIdentityConflictError } from "@/lib/server/authenticated-identity";
+import { completeExistingOnboarding } from "@/lib/server/onboarding";
 import { assertDemoSessionUser } from "@/lib/server/demo-session";
 import { demoWorkspace } from "@/lib/demo-data";
 import { getPlan } from "@/lib/billing";
@@ -231,14 +232,36 @@ export async function resetWorkspace(businessId: string) {
   return workspace;
 }
 
+const onboardingWrites = new Map<string, Promise<void>>();
+
 export async function onboardWorkspace(
   businessId: string,
   profile: OnboardingProfile,
   owner?: WorkspaceUser,
 ) {
-  const workspace = createWorkspaceFromOnboarding(businessId, profile, owner);
-  await writeWorkspace(businessId, workspace);
-  return workspace;
+  // Serialize onboarding submissions for a business within this file-store process.
+  const previous = onboardingWrites.get(businessId) ?? Promise.resolve();
+  const result = previous.then(async () => {
+    let raw: string | null = null;
+    try {
+      raw = await readFile(workspacePathFor(businessId), "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    const existing = raw === null ? null : normalizeWorkspace(JSON.parse(raw), businessId);
+    const workspace = existing
+      ? completeExistingOnboarding(existing, profile, owner)
+      : createWorkspaceFromOnboarding(businessId, profile, owner);
+    if (workspace !== existing) await writeWorkspace(businessId, workspace);
+    return workspace;
+  });
+  const pending = result.then(() => undefined, () => undefined);
+  onboardingWrites.set(businessId, pending);
+  try {
+    return await result;
+  } finally {
+    if (onboardingWrites.get(businessId) === pending) onboardingWrites.delete(businessId);
+  }
 }
 
 export async function resolveAuthenticatedSession(

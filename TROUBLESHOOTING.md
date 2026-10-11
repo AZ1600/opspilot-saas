@@ -188,3 +188,13 @@ The authenticated workspace page derives reset eligibility on the server and pas
 The existing repository reset methods are unchanged and remain usable by trusted internal fixtures. This guard applies to the exposed API and product controls; it does not introduce a production data-deletion or account-deletion feature.
 
 Validation: 256 unit tests and 44 real PostgreSQL integration tests passed, plus TypeScript and application lint, in an isolated source copy. The 17 new unit cases exercise the real file reset path and rendered command-center controls; only authentication and Clerk UI adapters are mocked. Five database cases prove that denied resets preserve workspace data, account bindings and billing identifiers, and that a local demo reset still works after approvals while leaving another business's records intact. Run the production build after applying the replacements.
+
+## Onboarding without replacing workspace data
+
+Onboarding updates an existing workspace in place rather than deleting its business row. First setup changes the business profile, active owner's display name, setup flag and built-in owner/focus documents. It keeps the existing plan, Stripe identifiers, team members and provider bindings, connectors, inbox, actions, approvals, jobs and other work history. Existing demo records also remain; onboarding is not a reset operation. A genuinely absent workspace still uses the initial onboarding templates.
+
+An identical retry returns the stored workspace without rewriting records. A different profile after setup returns 409 and directs the owner to Settings. The command center handles this conflict by loading the current workspace and opening Settings. Stored membership is checked before setup or retry: the actor must be an active owner of the same business.
+
+PostgreSQL serializes onboarding with a transaction-scoped advisory lock plus a business-row lock. The file repository serializes onboarding for a business within one process; it does not provide cross-process or general file-write transaction guarantees. PostgreSQL remains the production repository.
+
+Validation: 268 unit tests and 52 real PostgreSQL integration tests passed, plus TypeScript and application lint, in an isolated copy. Twelve new unit cases exercise the real file repository and onboarding route. Eight database cases cover first setup with paid billing and existing approvals, retained account bindings, harmless retries, conflicts, concurrent submissions, foreign-owner rejection and absent-business initialization. The production build and browser behavior for a stale onboarding form remain to be checked after applying.
