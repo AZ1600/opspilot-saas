@@ -168,3 +168,13 @@ Validation: 228 unit tests, 34 real PostgreSQL tests, TypeScript and application
 This change retains the existing one-workspace-per-account model and stored profile fields. It does not automatically synchronize changed Clerk email addresses into existing workspace profiles, merge accounts, or repair bindings created before this guard. Existing suspicious bindings need explicit review.
 
 Clerk reference: [Email verification state](https://clerk.com/docs/js-frontend/reference/types/email-address).
+
+## Profile names after onboarding and settings changes
+
+Saved owner names now appear in the mutation response and remain stored across subsequent requests. Workspace presentation uses the current user's refreshed profile name while keeping authenticated IDs, business scope and roles from the session. It does not substitute the workspace owner's name for a manager or staff member.
+
+Demo session resolution keeps existing stored names by default. An explicit new demo login passes the internal `updateName` option, registers the chosen name before issuing its signed cookie, and can intentionally change it. Development fallback names are used for missing members rather than overwriting existing profiles on every request.
+
+File settings writes update the owner's team-member name as well as `currentUser`. Older files whose settings write updated only `currentUser` retain that saved owner name and synchronize it into the member record when resolving the demo session. PostgreSQL upserts retain stored names unless the explicit login requests a name change, and refuse reserved demo IDs with complete or partial provider bindings.
+
+Validation: 239 unit tests and 39 real PostgreSQL integration tests passed, along with TypeScript checking and application lint, in an isolated source copy. Eleven new unit cases exercise real login, session, settings, onboarding and workspace routes with Clerk/cookie adapters mocked. Five new PostgreSQL cases cover persisted names, explicit login updates and partial provider-binding protection. Run the production build after applying the replacements.
