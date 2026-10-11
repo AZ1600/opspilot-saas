@@ -5,23 +5,25 @@ import { forbidden, hasPermission } from "@/lib/server/permissions";
 import { getWorkspaceRepository } from "@/lib/server/repository";
 import type { IngestionInsert } from "@/lib/server/workspace-repository";
 
+import { badRequest, readJsonObject, validateMessageIds } from "@/lib/server/request-validation";
+
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as { messageIds?: string[] };
-  const messageIds = body.messageIds ?? [];
-
-  if (messageIds.length === 0) {
-    return NextResponse.json(
-      { error: "Select at least one inbox message." },
-      { status: 400 },
-    );
-  }
-
   const session = await requireSession();
   if (!hasPermission(session, "inbox:scan")) {
     return forbidden("inbox:scan");
   }
+
+  const parsed = await readJsonObject(request);
+  if (!parsed.ok) {
+    return badRequest(parsed.error);
+  }
+  const validated = validateMessageIds(parsed.value);
+  if (!validated.ok) {
+    return badRequest(validated.error);
+  }
+  const messageIds = validated.value;
 
   const repository = getWorkspaceRepository();
   const workspace = await repository.read(session.businessId);

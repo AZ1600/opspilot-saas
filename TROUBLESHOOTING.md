@@ -86,3 +86,33 @@ reported zero findings.
 The configuration used ES-module syntax but was loaded as CommonJS.
 Renaming it to vitest.config.mts and replacing __dirname with
 an import.meta.url-based path resolved the warning.
+
+## JSON write endpoints threw on invalid body types
+
+Date: 11 October 2026
+
+Settings, onboarding, team invitations, manual ingestion, billing plan changes,
+checkout, and inbox scan parsed external JSON with type assertions. Malformed
+JSON and null bodies could throw. Numeric or object field values could reach
+string methods such as trim or includes. Inbox scans also accepted a string
+instead of an array of message IDs.
+
+These seven routes now authenticate and check permissions first, then use
+shared JSON-object and field validators. Invalid input returns HTTP 400 before
+the route's business mutation, AI classification, or Stripe checkout operation.
+Forbidden users receive HTTP 403 without parsing the body.
+
+Valid profile, invitation, and manual-input text is trimmed. Existing field
+minimums and allowed roles/plans/pain points are preserved. Inbox IDs must be
+a non-empty array of non-empty strings; duplicate IDs scan each selected
+message once. Unmatched selections still return HTTP 404.
+
+The 93 new route cases cover invalid shapes/fields, permissions, normalized
+valid arguments, inbox selection and checkout branches. Authentication,
+repository methods, AI and Stripe calls are mocked; permission rules and
+validators are real. They verify request boundaries, not live provider calls
+or database persistence. Separate PostgreSQL suites cover repository behavior.
+
+In an isolated project copy, all 172 unit tests, type checking and application
+lint passed. Run the production build after applying the complete files. CI
+also runs the existing PostgreSQL integration suites.
