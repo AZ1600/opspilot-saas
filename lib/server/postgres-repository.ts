@@ -1,3 +1,4 @@
+import { assertAuthenticatedIdentity, authenticatedBusinessId, AuthIdentityConflictError } from "@/lib/server/authenticated-identity";
 import type { PoolClient } from "pg";
 import { getPlan } from "@/lib/billing";
 import { assertDemoSessionUser } from "@/lib/server/demo-session";
@@ -416,62 +417,54 @@ async function resolveDemoSession(user: WorkspaceUser): Promise<ResolvedSession>
 async function resolveAuthenticatedSession(
   identity: AuthenticatedIdentity,
 ): Promise<ResolvedSession> {
-  return withTransaction(async (client) => {
-    await ensureAuthIdentitySchema(client);
+  assertAuthenticatedIdentity(identity);
+  const email = identity.email.trim().toLowerCase();
+  try {
+    return await withTransaction(async (client) => {
+      // Serialize first sign-ins for one provider ID, including absent user rows.
+      await client.query("select pg_advisory_xact_lock(hashtext($1))", [
+        JSON.stringify([identity.provider, identity.providerUserId]),
+      ]);
+      await ensureAuthIdentitySchema(client);
+      const byIdentity = await client.query<UserRow>(
+        `select * from users where auth_provider = $1 and auth_user_id = $2 limit 1 for update`,
+        [identity.provider, identity.providerUserId],
+      );
+      const identityUser = byIdentity.rows[0];
+      if (identityUser) {
+        if (identityUser.status !== "active") throw new AuthIdentityConflictError();
+        return sessionFromUser(identityUser);
+      }
 
-    const byIdentity = await client.query<UserRow>(
-      `select * from users
-       where auth_provider = $1 and auth_user_id = $2
-       limit 1`,
-      [identity.provider, identity.providerUserId],
-    );
-    const identityUser = byIdentity.rows[0];
+      const byEmail = await client.query<UserRow>(
+        "select * from users where lower(email) = $1 limit 1 for update", [email],
+      );
+      const emailUser = byEmail.rows[0];
+      if (emailUser) {
+        if (emailUser.auth_provider !== null || emailUser.auth_user_id !== null) {
+          throw new AuthIdentityConflictError();
+        }
+        return sessionFromUser(await attachAuthIdentity(client, emailUser.id, identity));
+      }
 
-    if (identityUser) {
-      return sessionFromUser(identityUser);
-    }
-
-    const byEmail = await client.query<UserRow>(
-      "select * from users where lower(email) = $1 limit 1",
-      [identity.email.toLowerCase()],
-    );
-    const emailUser = byEmail.rows[0];
-
-    if (emailUser) {
-      await attachAuthIdentity(client, emailUser.id, identity);
-      return sessionFromUser({
-        ...emailUser,
-        auth_provider: identity.provider,
-        auth_user_id: identity.providerUserId,
-        status: "active",
+      const businessId = authenticatedBusinessId(identity);
+      const existingBusiness = await client.query("select id from businesses where id = $1", [businessId]);
+      if (existingBusiness.rowCount) throw new AuthIdentityConflictError();
+      const owner: TeamMember = {
+        id: `${identity.provider}-${identity.providerUserId}`, businessId,
+        email, fullName: identity.fullName, role: "owner", status: "active",
+      };
+      await replaceWorkspace(client, {
+        ...demoWorkspace, businessId, onboardingCompleted: false,
+        currentUser: owner, teamMembers: [owner],
       });
-    }
-
-    const businessId = `business-${slugifyIdentity(identity.providerUserId)}`;
-    const owner: TeamMember = {
-      id: `${identity.provider}-${identity.providerUserId}`,
-      businessId,
-      email: identity.email,
-      fullName: identity.fullName,
-      role: "owner",
-      status: "active",
-    };
-    const seed = {
-      ...demoWorkspace,
-      businessId,
-      onboardingCompleted: false,
-      currentUser: owner,
-      teamMembers: [owner],
-    };
-
-    await replaceWorkspace(client, seed);
-    await attachAuthIdentity(client, owner.id, identity);
-
-    return {
-      businessId,
-      user: owner,
-    };
-  });
+      return sessionFromUser(await attachAuthIdentity(client, owner.id, identity));
+    });
+  } catch (error) {
+    // A concurrent account claiming the same unique email must fail closed.
+    if ((error as { code?: string })?.code === "23505") throw new AuthIdentityConflictError();
+    throw error;
+  }
 }
 
 async function reset(businessId: string) {
@@ -959,23 +952,16 @@ async function attachAuthIdentity(
   userId: string,
   identity: AuthenticatedIdentity,
 ) {
-  await client.query(
-    `update users
-     set auth_provider = $2,
-         auth_user_id = $3,
-         email = $4,
-         full_name = $5,
-         status = 'active',
-         invited_at = null
-     where id = $1`,
-    [
-      userId,
-      identity.provider,
-      identity.providerUserId,
-      identity.email.toLowerCase(),
-      identity.fullName,
-    ],
+  const result = await client.query<UserRow>(
+    `update users set auth_provider = $2, auth_user_id = $3, email = $4,
+       full_name = $5, status = 'active', invited_at = null
+     where id = $1 and auth_provider is null and auth_user_id is null
+     returning *`,
+    [userId, identity.provider, identity.providerUserId,
+      identity.email.trim().toLowerCase(), identity.fullName],
   );
+  if (!result.rows[0]) throw new AuthIdentityConflictError();
+  return result.rows[0];
 }
 
 function sessionFromUser(user: UserRow): ResolvedSession {
@@ -1507,11 +1493,6 @@ function fromCents(value: number) {
 
 function toIso(value: Date | string) {
   return value instanceof Date ? value.toISOString() : value;
-}
-
-function slugifyIdentity(value: string) {
-  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return slug || `user-${Date.now()}`;
 }
 
 export const postgresWorkspaceRepository: WorkspaceRepository = {

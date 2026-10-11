@@ -154,3 +154,17 @@ Signature freshness does not track processed event IDs or resolve the ordering
 of distinct subscription events. Subscription entitlement policy and event
 deduplication/order handling remain separate work. Verify the production build
 after copying; existing PostgreSQL suites continue to run in CI.
+
+## Verified email and account binding
+
+Clerk workspace access now requires a verified primary email. Accounts without one are sent to `/account` to add or verify their email using Clerk's account component. A shared placeholder email is never used for workspace linking.
+
+PostgreSQL resolves an existing provider ID before considering email. A verified email may activate an unbound legacy member or invitation, preserving its business and role. A member already bound to another provider ID cannot be rebound by an email match. Partially bound rows and inactive bound members fail closed. Account conflicts lead to a recovery message without exposing the other account's details.
+
+New workspaces use lowercase SHA-256 IDs derived from the provider and exact provider user ID. Existing PostgreSQL bindings retain their workspace IDs. Existing file workspaces are reused only when their stored member ID exactly matches the provider identity. A colliding legacy filename is never claimed or overwritten. New file workspaces are published atomically without replacing a concurrent sign-in's file.
+
+Validation: 228 unit tests, 34 real PostgreSQL tests, TypeScript and application lint passed in an isolated source copy. The added tests comprise 27 unit cases and 13 database cases, including unverified and phone-only accounts, immutable bindings, legacy access, workspace ID collisions, email changes and concurrent first sign-ins. Run the production build after applying the files.
+
+This change retains the existing one-workspace-per-account model and stored profile fields. It does not automatically synchronize changed Clerk email addresses into existing workspace profiles, merge accounts, or repair bindings created before this guard. Existing suspicious bindings need explicit review.
+
+Clerk reference: [Email verification state](https://clerk.com/docs/js-frontend/reference/types/email-address).

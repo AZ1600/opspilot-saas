@@ -34,6 +34,7 @@ export type ExecutionStatus = Extract<
 export type AuthenticatedIdentity = {
   provider: "clerk";
   providerUserId: string;
+  emailVerified: true;
   email: string;
   fullName: string;
 };

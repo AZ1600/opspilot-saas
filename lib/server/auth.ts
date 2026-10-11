@@ -1,3 +1,4 @@
+import { AuthIdentityConflictError } from "@/lib/server/authenticated-identity";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
@@ -177,19 +178,28 @@ async function sessionFromClerkUser(
     redirect("/login");
   }
 
-  const email =
-    clerkUser.primaryEmailAddress?.emailAddress ??
-    clerkUser.emailAddresses[0]?.emailAddress ??
-    "user@opspilot.example";
+  const primaryEmail = clerkUser.primaryEmailAddress;
+  if (primaryEmail?.verification?.status !== "verified" || !primaryEmail.emailAddress?.trim()) {
+    redirect("/account?issue=email");
+  }
+  const email = primaryEmail.emailAddress.trim().toLowerCase();
   const nameFromParts = [clerkUser.firstName, clerkUser.lastName]
     .filter(Boolean)
     .join(" ");
   const fullName = clerkUser.fullName || nameFromParts || email;
 
-  return getWorkspaceRepository().resolveAuthenticatedSession({
-    provider: "clerk",
-    providerUserId: clerkUser.id,
-    email: email.toLowerCase(),
-    fullName,
-  });
+  try {
+    return await getWorkspaceRepository().resolveAuthenticatedSession({
+      provider: "clerk",
+      providerUserId: clerkUser.id,
+      emailVerified: true,
+      email,
+      fullName,
+    });
+  } catch (error) {
+    if (error instanceof AuthIdentityConflictError) {
+      redirect("/account?issue=workspace");
+    }
+    throw error;
+  }
 }

@@ -1,5 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
+import { assertAuthenticatedIdentity, authenticatedBusinessId, AuthIdentityConflictError } from "@/lib/server/authenticated-identity";
 import { assertDemoSessionUser } from "@/lib/server/demo-session";
 import { demoWorkspace } from "@/lib/demo-data";
 import { getPlan } from "@/lib/billing";
@@ -237,45 +239,54 @@ export async function onboardWorkspace(
 export async function resolveAuthenticatedSession(
   identity: AuthenticatedIdentity,
 ): Promise<ResolvedSession> {
-  const businessId = `business-${slugifyIdentity(identity.providerUserId)}`;
-  const workspace = await readWorkspace(businessId);
-  const existingMember = workspace.teamMembers.find(
-    (member) => member.email.toLowerCase() === identity.email.toLowerCase(),
-  );
-  const user: WorkspaceUser = existingMember
-    ? {
-        id: existingMember.id,
-        businessId,
-        email: existingMember.email,
-        fullName: existingMember.fullName,
-        role: existingMember.role,
-      }
-    : {
-        id: `${identity.provider}-${identity.providerUserId}`,
-        businessId,
-        email: identity.email,
-        fullName: identity.fullName,
-        role: "owner",
-      };
+  assertAuthenticatedIdentity(identity);
+  const userId = `${identity.provider}-${identity.providerUserId}`;
+  const businessId = authenticatedBusinessId(identity);
+  const legacyId = `business-${slugifyIdentity(identity.providerUserId)}`;
 
-  if (!existingMember) {
-    await writeWorkspace(businessId, {
-      ...workspace,
-      currentUser: user,
-      teamMembers: [
-        {
-          ...user,
-          status: "active",
-        },
-        ...workspace.teamMembers.filter((member) => member.role !== "owner"),
-      ],
-    });
+  for (const candidate of [businessId, legacyId]) {
+    let raw: string;
+    try {
+      raw = await readFile(workspacePathFor(candidate), "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw error;
+    }
+    const workspace = normalizeWorkspace(JSON.parse(raw), candidate);
+    const member = workspace.teamMembers.find((entry) => entry.id === userId);
+    if (member) {
+      if (member.status !== "active") throw new AuthIdentityConflictError();
+      return { businessId: candidate, user: {
+        id: member.id, businessId: candidate, email: member.email,
+        fullName: member.fullName, role: member.role,
+      } };
+    }
+    // A legacy slug may belong to a different identity. Never overwrite it.
+    if (candidate === businessId) throw new AuthIdentityConflictError();
   }
 
-  return {
-    businessId,
-    user,
+  const user: WorkspaceUser = {
+    id: userId, businessId, email: identity.email.trim().toLowerCase(),
+    fullName: identity.fullName, role: "owner",
   };
+  const workspace = {
+    ...seedWorkspaceFor(businessId), onboardingCompleted: false,
+    currentUser: user, teamMembers: [{ ...user, status: "active" as const }],
+  };
+  await mkdir(getWritableDataDir(), { recursive: true });
+  const temporaryPath = join(getWritableDataDir(), `.auth-${randomUUID()}.json`);
+  await writeFile(temporaryPath, JSON.stringify(workspace, null, 2), { flag: "wx" });
+  try {
+    // Publish a complete file atomically without replacing another sign-in's file.
+    await link(temporaryPath, workspacePathFor(businessId));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    // Concurrent first sign-ins must read the winner, never replace its data.
+    return resolveAuthenticatedSession(identity);
+  } finally {
+    await unlink(temporaryPath);
+  }
+  return { businessId, user };
 }
 
 export async function updateWorkspaceSettings(
