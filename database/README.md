@@ -26,3 +26,9 @@ OPSPILOT_TEST_DATABASE_URL='postgresql://opspilot_test:opspilot_local_test@127.0
 The tests require the isolated database at `127.0.0.1:55432/opspilot_test` with the Compose test credentials. They apply the schema, create unique fixtures, and delete their own fixtures afterward. The Compose database uses temporary storage.
 
 `npm run test` runs the unit/file tests separately. CI runs both suites.
+
+## Development demo sessions
+
+Outside production, demo owner, manager, and staff sessions are registered as active members of the demo business before use. This allows permitted demo approvals to satisfy the same actor membership check as real users. Repeated session resolution preserves existing approval and execution records.
+
+Demo identities are restricted to the canonical demo business, user IDs, emails, and roles. Both repositories reject demo registration in production. The demo login endpoint is also unavailable when Clerk is configured; real Clerk session resolution is unchanged.

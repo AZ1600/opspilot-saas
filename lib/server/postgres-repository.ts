@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 import { getPlan } from "@/lib/billing";
+import { assertDemoSessionUser } from "@/lib/server/demo-session";
 import { demoWorkspace } from "@/lib/demo-data";
 import { getDatabasePool, withTransaction } from "@/lib/server/database";
 import type {
@@ -382,6 +383,34 @@ async function ensureWorkspace(businessId: string) {
 
 async function read(businessId: string) {
   return ensureWorkspace(businessId);
+}
+
+async function resolveDemoSession(user: WorkspaceUser): Promise<ResolvedSession> {
+  assertDemoSessionUser(user);
+
+  return withTransaction(async (client) => {
+    await ensureWorkspaceInTransaction(client, user.businessId);
+    const result = await client.query<UserRow>(
+      `insert into users (id, business_id, email, full_name, role, status)
+       values ($1, $2, $3, $4, $5, 'active')
+       on conflict (id) do update set
+         email = excluded.email,
+         full_name = excluded.full_name,
+         role = excluded.role,
+         status = 'active'
+       where users.business_id = excluded.business_id
+         and users.auth_provider is null
+       returning *`,
+      [user.id, user.businessId, user.email, user.fullName.trim(), user.role],
+    );
+    const member = result.rows[0];
+
+    if (!member) {
+      throw new Error("Demo identity conflicts with an existing user.");
+    }
+
+    return sessionFromUser(member);
+  });
 }
 
 async function resolveAuthenticatedSession(
@@ -1488,6 +1517,7 @@ function slugifyIdentity(value: string) {
 export const postgresWorkspaceRepository: WorkspaceRepository = {
   read,
   resolveAuthenticatedSession,
+  resolveDemoSession,
   reset,
   onboard,
   updateSettings,
