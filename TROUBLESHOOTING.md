@@ -178,3 +178,13 @@ Demo session resolution keeps existing stored names by default. An explicit new 
 File settings writes update the owner's team-member name as well as `currentUser`. Older files whose settings write updated only `currentUser` retain that saved owner name and synchronize it into the member record when resolving the demo session. PostgreSQL upserts retain stored names unless the explicit login requests a name change, and refuse reserved demo IDs with complete or partial provider bindings.
 
 Validation: 239 unit tests and 39 real PostgreSQL integration tests passed, along with TypeScript checking and application lint, in an isolated source copy. Eleven new unit cases exercise real login, session, settings, onboarding and workspace routes with Clerk/cookie adapters mocked. Five new PostgreSQL cases cover persisted names, explicit login updates and partial provider-binding protection. Run the production build after applying the replacements.
+
+## Local demo reset boundary
+
+`POST /api/workspace/reset` still requires an authenticated owner with reset permission. It now additionally requires a non-production environment, no Clerk keys (including partial configuration), the canonical demo business ID on both session and user, and the canonical demo owner ID. Other requests return 403 before accessing reset storage.
+
+The authenticated workspace page derives reset eligibility on the server and passes it to the command center. Reset controls are hidden when unavailable, including Clerk accounts and the public demo. The eligible local demo owner retains both reset controls, with the settings control labeled `Reset demo workspace`.
+
+The existing repository reset methods are unchanged and remain usable by trusted internal fixtures. This guard applies to the exposed API and product controls; it does not introduce a production data-deletion or account-deletion feature.
+
+Validation: 256 unit tests and 44 real PostgreSQL integration tests passed, plus TypeScript and application lint, in an isolated source copy. The 17 new unit cases exercise the real file reset path and rendered command-center controls; only authentication and Clerk UI adapters are mocked. Five database cases prove that denied resets preserve workspace data, account bindings and billing identifiers, and that a local demo reset still works after approvals while leaving another business's records intact. Run the production build after applying the replacements.

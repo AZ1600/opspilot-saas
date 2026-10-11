@@ -41,12 +41,14 @@ type Filter = "all" | "urgent" | "pending";
 type CommandCenterProps = {
   authMode: AuthMode;
   initialWorkspace: WorkspaceSnapshot;
+  demoResetEnabled: boolean;
   isPublicDemo?: boolean;
 };
 
 export function CommandCenter({
   authMode,
   initialWorkspace,
+  demoResetEnabled,
   isPublicDemo = false,
 }: CommandCenterProps) {
   const [workspace, setWorkspace] = useState(initialWorkspace);
@@ -146,7 +148,7 @@ export function CommandCenter({
   ) && !isPublicDemo;
   const canManageSettings = !isPublicDemo && can(workspace.currentUser.role, "settings:manage");
   const canManageTeam = !isPublicDemo && can(workspace.currentUser.role, "team:manage");
-  const canResetWorkspace = !isPublicDemo && can(workspace.currentUser.role, "workspace:reset");
+  const canResetWorkspace = demoResetEnabled && authMode === "demo" && !isPublicDemo && can(workspace.currentUser.role, "workspace:reset");
 
   const visibleActions = useMemo(() => {
     if (filter === "urgent") {
@@ -782,9 +784,11 @@ export function CommandCenter({
             <button className="primary-button" disabled={isScanning || !canScanInbox} onClick={runScan} type="button">
               {isScanning ? "Scanning..." : "Run AI scan"}
             </button>
-            <button className="secondary-button" disabled={!canResetWorkspace} onClick={resetWorkspace} type="button">
-              Reset demo
-            </button>
+            {canResetWorkspace && (
+              <button className="secondary-button" onClick={resetWorkspace} type="button">
+                Reset demo
+              </button>
+            )}
             {isPublicDemo ? (
               <Link className="secondary-button link-button" href="/">
                 Back to overview
@@ -1614,14 +1618,15 @@ export function CommandCenter({
                 >
                   {isSavingSettings ? "Saving..." : "Save settings"}
                 </button>
-                <button
-                  className="secondary-button"
-                  disabled={!canResetWorkspace}
-                  onClick={resetWorkspace}
-                  type="button"
-                >
-                  Reset workspace
-                </button>
+                {canResetWorkspace && (
+                  <button
+                    className="secondary-button"
+                    onClick={resetWorkspace}
+                    type="button"
+                  >
+                    Reset demo workspace
+                  </button>
+                )}
               </div>
             </section>
 
