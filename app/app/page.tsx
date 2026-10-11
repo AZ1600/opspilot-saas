@@ -1,5 +1,6 @@
 import { CommandCenter } from "@/components/command-center";
 import { getAuthMode, presentWorkspace, requireSession } from "@/lib/server/auth";
+import { canResetDemoWorkspace } from "@/lib/server/demo-reset";
 import { getWorkspaceRepository } from "@/lib/server/repository";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export default async function WorkspacePage() {
     <CommandCenter
       authMode={getAuthMode()}
       initialWorkspace={presentWorkspace(workspace, session)}
+      demoResetEnabled={canResetDemoWorkspace(session)}
     />
   );
 }

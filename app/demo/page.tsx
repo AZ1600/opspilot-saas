@@ -6,6 +6,7 @@ export default function DemoPage() {
     <CommandCenter
       authMode="demo"
       initialWorkspace={{ ...demoWorkspace, onboardingCompleted: true }}
+      demoResetEnabled={false}
       isPublicDemo
     />
   );
