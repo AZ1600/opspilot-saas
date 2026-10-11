@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { BillingPlan } from "@/lib/types";
 
 const stripeApiBase = "https://api.stripe.com/v1";
+const signatureToleranceSeconds = 300;
 
 export type StripeCheckoutSession = {
   id: string;
@@ -130,14 +131,23 @@ function isValidStripeSignature(
   signatureHeader: string,
   secret: string,
 ) {
-  const entries = signatureHeader.split(",").map((entry) => entry.split("="));
+  const entries = signatureHeader.split(",").map((entry) => entry.trim().split("="));
   const timestamp = entries.find(([key]) => key === "t")?.[1];
   const signatures = entries
     .filter(([key]) => key === "v1")
     .map(([, value]) => value)
     .filter(Boolean);
 
-  if (!timestamp || signatures.length === 0) {
+  if (!timestamp || signatures.length === 0 || !/^\d+$/.test(timestamp)) {
+    return false;
+  }
+
+  const signedAt = Number(timestamp);
+  const now = Math.floor(Date.now() / 1000);
+  if (
+    !Number.isSafeInteger(signedAt) ||
+    Math.abs(now - signedAt) > signatureToleranceSeconds
+  ) {
     return false;
   }
 
