@@ -17,6 +17,7 @@ import type {
   WorkspaceSnapshot,
 } from "@/lib/types";
 import type {
+  ApprovalActor,
   AuthenticatedIdentity,
   BillingState,
   DecisionStatus,
@@ -43,6 +44,10 @@ function seedWorkspaceFor(businessId: string): WorkspaceSnapshot {
       ...demoWorkspace.currentUser,
       businessId,
     },
+    teamMembers: demoWorkspace.teamMembers.map((member) => ({
+      ...member,
+      businessId,
+    })),
   };
 }
 
@@ -64,7 +69,10 @@ function normalizeWorkspace(
       ...workspace.currentUser,
       businessId,
     },
-    teamMembers: workspace.teamMembers ?? seed.teamMembers,
+    teamMembers: (workspace.teamMembers ?? seed.teamMembers).map((member) => ({
+      ...member,
+      businessId,
+    })),
     actions: workspace.actions ?? seed.actions,
     revenueLeaks: workspace.revenueLeaks ?? seed.revenueLeaks,
     customerRisks: workspace.customerRisks ?? seed.customerRisks,
@@ -356,13 +364,24 @@ export async function updateActionDecision(
   businessId: string,
   actionId: string,
   status: Extract<ActionStatus, "approved" | "dismissed">,
-  actor: string,
+  actor: ApprovalActor,
 ) {
   const workspace = await readWorkspace(businessId);
   const action = workspace.actions.find((item) => item.id === actionId);
 
   if (!action) {
     return null;
+  }
+
+  const actorUser = workspace.teamMembers.find(
+    (member) =>
+      member.id === actor.id &&
+      member.businessId === businessId &&
+      member.status === "active",
+  );
+
+  if (!actorUser) {
+    throw new Error("Approval actor must be an active member of this business.");
   }
 
   if (action.status === status) {
@@ -374,11 +393,12 @@ export async function updateActionDecision(
     actionId,
     actionTitle: action.title,
     decision: status,
-    actor,
+    actor: actorUser.fullName,
+    actorId: actorUser.id,
     createdAt: new Date().toISOString(),
   };
   const impact = status === "approved" ? createImpactEntry(action) : null;
-  const executionJob = status === "approved" ? createExecutionJob(action, actor) : null;
+  const executionJob = status === "approved" ? createExecutionJob(action, actorUser.fullName) : null;
 
   const nextWorkspace: WorkspaceSnapshot = {
     ...workspace,
@@ -559,7 +579,7 @@ export const fileWorkspaceRepository: WorkspaceRepository = {
     businessId: string,
     actionId: string,
     status: DecisionStatus,
-    actor: string,
+    actor: ApprovalActor,
   ) => updateActionDecision(businessId, actionId, status, actor),
 };
 

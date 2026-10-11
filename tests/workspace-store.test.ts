@@ -39,7 +39,7 @@ describe("fileWorkspaceRepository", () => {
 
   it("creates approval, impact, and execution records when an action is approved", async () => {
     const businessId = "test-business-repository";
-    await fileWorkspaceRepository.reset(businessId);
+    const initialWorkspace = await fileWorkspaceRepository.reset(businessId);
 
     const action: BusinessAction = {
       id: "test-action-invoice-follow-up",
@@ -74,7 +74,7 @@ describe("fileWorkspaceRepository", () => {
       businessId,
       action.id,
       "approved",
-      "Wale Azeez",
+      { id: initialWorkspace.currentUser.id },
     );
 
     expect(approved).not.toBeNull();
@@ -83,7 +83,8 @@ describe("fileWorkspaceRepository", () => {
     );
     expect(approved?.approvalEvents[0]).toMatchObject({
       actionId: action.id,
-      actor: "Wale Azeez",
+      actor: initialWorkspace.currentUser.fullName,
+      actorId: initialWorkspace.currentUser.id,
       decision: "approved",
     });
     expect(approved?.impactEntries[0]).toMatchObject({
@@ -95,7 +96,7 @@ describe("fileWorkspaceRepository", () => {
     expect(approved?.executionJobs[0]).toMatchObject({
       actionId: action.id,
       customer: "Northline Dental",
-      owner: "Wale Azeez",
+      owner: initialWorkspace.currentUser.fullName,
       status: "queued",
       type: "invoice_reminder",
     });

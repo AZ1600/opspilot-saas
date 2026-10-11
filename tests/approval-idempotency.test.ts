@@ -8,7 +8,7 @@ describe("approval retries", () => {
     async (status) => {
       const businessId = `test-approval-idempotency-${status}`;
 
-      await fileWorkspaceRepository.reset(businessId);
+      const initialWorkspace = await fileWorkspaceRepository.reset(businessId);
 
       const action: BusinessAction = {
         id: "retry-safe-action",
@@ -33,7 +33,7 @@ describe("approval retries", () => {
         businessId,
         action.id,
         "approved",
-        "Test Owner",
+        { id: initialWorkspace.currentUser.id },
       );
 
       const originalJob = approved?.executionJobs.find(
@@ -61,7 +61,7 @@ describe("approval retries", () => {
         businessId,
         action.id,
         "approved",
-        "Test Owner",
+        { id: initialWorkspace.currentUser.id },
       );
 
       expect(

@@ -87,7 +87,7 @@ describe("valid action decisions", () => {
       "test-business",
       "test-action",
       status,
-      "Test Owner",
+      { id: "test-owner" },
     );
     expect(await response.json()).toEqual({ workspace });
   });
@@ -136,7 +136,7 @@ describe("missing actions", () => {
       "test-business",
       "missing-action",
       "approved",
-      "Test Owner",
+      { id: "test-owner" },
     );
   });
 });

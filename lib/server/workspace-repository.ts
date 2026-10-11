@@ -25,6 +25,7 @@ export type InboxImport = {
   account: ConnectedAccount;
   messages: InboxMessage[];
 };
+export type ApprovalActor = Pick<WorkspaceUser, "id">;
 export type DecisionStatus = Extract<ActionStatus, "approved" | "dismissed">;
 export type ExecutionStatus = Extract<
   WorkspaceSnapshot["executionJobs"][number]["status"],
@@ -106,7 +107,7 @@ export type WorkspaceRepository = {
     businessId: string,
     actionId: string,
     status: DecisionStatus,
-    actor: string,
+    actor: ApprovalActor,
   ): Promise<WorkspaceSnapshot | null>;
   updateExecutionJobStatus(
     businessId: string,

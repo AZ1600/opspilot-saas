@@ -89,7 +89,7 @@ describe("workspace tenant isolation", () => {
         tenantA,
         sharedActionId,
         "approved",
-        "Tenant A Owner",
+        { id: beforeA.currentUser.id },
       );
 
     expect(
@@ -100,7 +100,8 @@ describe("workspace tenant isolation", () => {
 
     expect(updatedA?.approvalEvents[0]).toMatchObject({
       actionId: sharedActionId,
-      actor: "Tenant A Owner",
+      actor: beforeA.currentUser.fullName,
+      actorId: beforeA.currentUser.id,
       decision: "approved",
     });
 

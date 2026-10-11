@@ -99,7 +99,7 @@ async function createTenant(label: string, actionId: string) {
     revenueLeaks: [],
   });
 
-  return { businessId, ownerName, action };
+  return { businessId, ownerName, action, userId };
 }
 
 async function approve(tenant: Awaited<ReturnType<typeof createTenant>>) {
@@ -107,7 +107,7 @@ async function approve(tenant: Awaited<ReturnType<typeof createTenant>>) {
     tenant.businessId,
     tenant.action.id,
     "approved",
-    tenant.ownerName,
+    { id: tenant.userId },
   );
   const job = workspace?.executionJobs.find(
     (entry) => entry.actionId === tenant.action.id,
@@ -140,7 +140,7 @@ describe("PostgreSQL tenant isolation", () => {
       tenantA.businessId,
       tenantA.action.id,
       "approved",
-      tenantA.ownerName,
+      { id: tenantA.userId },
     );
 
     expect(approvedA?.actions).toEqual([
@@ -171,7 +171,7 @@ describe("PostgreSQL tenant isolation", () => {
           tenantA.businessId,
           tenantB.action.id,
           decision,
-          tenantA.ownerName,
+          { id: tenantA.userId },
         ),
       ).toBeNull();
 

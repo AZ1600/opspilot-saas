@@ -55,7 +55,7 @@ export async function PATCH(
     session.businessId,
     id,
     body.status,
-    session.user.fullName,
+    { id: session.user.id },
   );
 
   if (!workspace) {
