@@ -24,21 +24,8 @@ export function getRuntimeConfigReport(): RuntimeConfigReport {
   const authMode = hasClerkConfig() ? "clerk" : "demo";
   const billingMode = hasStripeConfig() ? "stripe" : "demo";
 
-  if (repository !== "file" && repository !== "postgres") {
-    checks.push({
-      key: "OPSPILOT_REPOSITORY",
-      message: "Use file or postgres.",
-      severity: "error",
-    });
-  }
-
-  if (repository === "postgres" && !process.env.DATABASE_URL) {
-    checks.push({
-      key: "DATABASE_URL",
-      message: "Required when OPSPILOT_REPOSITORY=postgres.",
-      severity: "error",
-    });
-  }
+  const storageCheck = getWorkspaceStorageCheck(environment);
+  if (storageCheck) checks.push(storageCheck);
 
   if (aiProvider !== "rules" && aiProvider !== "openai") {
     checks.push({
@@ -78,14 +65,7 @@ if (environment === "production") {
     });
   }
 
-  if (repository === "file") {
-    checks.push({
-      key: "OPSPILOT_REPOSITORY",
-      message:
-        "File storage is for demos; use postgres for production.",
-      severity: "warning",
-    });
-  }
+
 }
 
   if (hasPartialGoogleOAuthConfig()) {
@@ -193,4 +173,28 @@ export function isDemoAuthAllowed(
   environment = process.env.NODE_ENV ?? "development",
 ) {
   return environment !== "production";
+}
+
+
+export function getWorkspaceStorageCheck(
+  environment = process.env.NODE_ENV ?? "development",
+): ConfigCheck | null {
+  const repository = process.env.OPSPILOT_REPOSITORY ?? "file";
+  if (repository !== "file" && repository !== "postgres") {
+    return { key: "OPSPILOT_REPOSITORY", message: "Use file or postgres.", severity: "error" };
+  }
+  if (environment === "production" && repository !== "postgres") {
+    return { key: "OPSPILOT_REPOSITORY", message: "PostgreSQL storage is required in production.", severity: "error" };
+  }
+  if (repository === "postgres") {
+    const value = process.env.DATABASE_URL?.trim();
+    if (!value) return { key: "DATABASE_URL", message: "Required when OPSPILOT_REPOSITORY=postgres.", severity: "error" };
+    try {
+      const url = new URL(value);
+      if (!["postgres:", "postgresql:"].includes(url.protocol) || !url.hostname || url.pathname.length < 2) throw new Error("Invalid database URL");
+    } catch {
+      return { key: "DATABASE_URL", message: "Use a PostgreSQL connection URL with a host and database name.", severity: "error" };
+    }
+  }
+  return null;
 }

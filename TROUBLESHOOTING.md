@@ -198,3 +198,15 @@ An identical retry returns the stored workspace without rewriting records. A dif
 PostgreSQL serializes onboarding with a transaction-scoped advisory lock plus a business-row lock. The file repository serializes onboarding for a business within one process; it does not provide cross-process or general file-write transaction guarantees. PostgreSQL remains the production repository.
 
 Validation: 268 unit tests and 52 real PostgreSQL integration tests passed, plus TypeScript and application lint, in an isolated copy. Twelve new unit cases exercise the real file repository and onboarding route. Eight database cases cover first setup with paid billing and existing approvals, retained account bindings, harmless retries, conflicts, concurrent submissions, foreign-owner rejection and absent-business initialization. The production build and browser behavior for a stale onboarding form remain to be checked after applying.
+
+## Production storage and read-only health checks
+
+Production now requires `OPSPILOT_REPOSITORY=postgres` plus a valid PostgreSQL `DATABASE_URL` specifying a host and database. Unknown selectors, missing URLs and unsupported/incomplete URLs fail configuration validation and repository selection instead of silently selecting file storage. Local development and tests can still use files.
+
+The request proxy returns 503 with `Cache-Control: no-store` for workspace pages and business API requests when storage configuration is invalid. Public pages, account access, auth endpoints and health diagnosis remain under the existing authentication middleware. This guard validates configuration; database outages are diagnosed by the health probe rather than silently falling back to files.
+
+The health endpoint now calls a dedicated `checkHealth` repository method. PostgreSQL performs a zero-row read to resolve and permission-check the required workspace tables. It does not call workspace reads, seed a demo business, or fetch tenant data. File health checks an existing directory or parent and rejects non-directory paths and dangling storage symlinks without creating files. Responses omit database exception details and are not cached.
+
+Before merging into a deployed production branch, configure PostgreSQL and the connection URL in Vercel's Production environment and apply `database/schema.sql` to that database. If those settings are absent, workspace traffic will deliberately return 503. This change does not copy existing local JSON data into PostgreSQL.
+
+Validation: 304 unit tests and 54 real PostgreSQL integration tests passed, plus TypeScript and application lint, in an isolated source copy. New coverage comprises 31 selector/configuration/proxy/health cases, 5 real filesystem health cases and 2 database cases verifying unchanged table counts, business records, bindings and billing state. Run the production build after applying the complete replacements.

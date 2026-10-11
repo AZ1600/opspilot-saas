@@ -11,7 +11,7 @@ export async function GET() {
   let repositoryLatencyMs: number | null = null;
 
   try {
-    await getWorkspaceRepository().read("business-demo-cleaning");
+    await getWorkspaceRepository().checkHealth();
     repositoryReachable = true;
     repositoryLatencyMs = Date.now() - startedAt;
   } catch {
@@ -34,6 +34,6 @@ export async function GET() {
         },
       },
     },
-    { status: ok ? 200 : 503 },
+    { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } },
   );
 }

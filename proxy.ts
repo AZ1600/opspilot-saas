@@ -1,10 +1,18 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
-import { isDemoAuthAllowed } from "@/lib/server/config";
+import { getWorkspaceStorageCheck, isDemoAuthAllowed } from "@/lib/server/config";
 
 const clerk = clerkMiddleware();
 
 export default function proxy(request: NextRequest, event: NextFetchEvent) {
+  const path = request.nextUrl.pathname;
+  const needsWorkspaceStorage = path === "/app" || path.startsWith("/app/") ||
+    (path.startsWith("/api/") && path !== "/api/health" && !path.startsWith("/api/auth/"));
+  if (needsWorkspaceStorage && getWorkspaceStorageCheck()) {
+    return new NextResponse("Workspace storage is unavailable.", {
+      status: 503, headers: { "Cache-Control": "no-store" },
+    });
+  }
 if (!isClerkConfigured()) {
   if (!isDemoAuthAllowed()) {
     return new NextResponse(

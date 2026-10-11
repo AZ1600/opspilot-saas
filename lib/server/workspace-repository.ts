@@ -64,6 +64,7 @@ export type StripeCustomerBillingUpdate = Omit<
 >;
 
 export type WorkspaceRepository = {
+  checkHealth(): Promise<void>;
   read(businessId: string): Promise<WorkspaceSnapshot>;
   resolveDemoSession(user: WorkspaceUser, options?: DemoSessionOptions): Promise<ResolvedSession>;
   resolveAuthenticatedSession(
