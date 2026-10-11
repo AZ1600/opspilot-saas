@@ -205,7 +205,7 @@ describe("demo authentication boundaries", () => {
     vi.stubEnv("CLERK_SECRET_KEY", "sk_test_example");
     mocks.clerkUser.mockResolvedValue({
       id: "real-clerk-demo-regression",
-      primaryEmailAddress: { emailAddress: "real-clerk@example.test" },
+      primaryEmailAddress: { emailAddress: "real-clerk@example.test", verification: { status: "verified" } },
       emailAddresses: [], fullName: "Clerk Test User", firstName: "Clerk", lastName: "Test User",
     });
     const session = await requireSession();
