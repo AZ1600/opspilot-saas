@@ -98,7 +98,7 @@ async function createPendingAction() {
     revenueLeaks: [],
   });
 
-  return { businessId, action };
+  return { businessId, action, userId };
 }
 
 async function waitForBlockedApprovals() {
@@ -123,10 +123,10 @@ describe("PostgreSQL approval retries", () => {
   it.each(["completed", "failed"] as const)(
     "preserves %s work and approval history",
     async (status) => {
-      const { businessId, action } = await createPendingAction();
+      const { businessId, action, userId } = await createPendingAction();
 
       const approved = await postgresWorkspaceRepository.updateActionDecision(
-        businessId, action.id, "approved", "Test Owner",
+        businessId, action.id, "approved", { id: userId },
       );
 
       const originalJob = approved?.executionJobs.find((job) => job.actionId === action.id);
@@ -141,7 +141,7 @@ describe("PostgreSQL approval retries", () => {
       expect(finishedJob).toMatchObject({ status });
 
       const retried = await postgresWorkspaceRepository.updateActionDecision(
-        businessId, action.id, "approved", "Test Owner",
+        businessId, action.id, "approved", { id: userId },
       );
 
       expect(retried?.executionJobs.filter((job) => job.actionId === action.id)).toEqual([finishedJob]);
@@ -151,7 +151,7 @@ describe("PostgreSQL approval retries", () => {
   );
 
   it("records one approval, impact entry and job for concurrent identical approvals", async () => {
-    const { businessId, action } = await createPendingAction();
+    const { businessId, action, userId } = await createPendingAction();
     const blocker = await getDatabasePool().connect();
     let committed = false;
     let approvals: Promise<PromiseSettledResult<WorkspaceSnapshot | null>[]> | undefined;
@@ -164,8 +164,8 @@ describe("PostgreSQL approval retries", () => {
       );
 
       approvals = Promise.allSettled([
-        postgresWorkspaceRepository.updateActionDecision(businessId, action.id, "approved", "Test Owner"),
-        postgresWorkspaceRepository.updateActionDecision(businessId, action.id, "approved", "Test Owner"),
+        postgresWorkspaceRepository.updateActionDecision(businessId, action.id, "approved", { id: userId }),
+        postgresWorkspaceRepository.updateActionDecision(businessId, action.id, "approved", { id: userId }),
       ]);
 
       await waitForBlockedApprovals();

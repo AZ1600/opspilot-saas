@@ -3,6 +3,7 @@ import { getPlan } from "@/lib/billing";
 import { demoWorkspace } from "@/lib/demo-data";
 import { getDatabasePool, withTransaction } from "@/lib/server/database";
 import type {
+  ApprovalActor,
   AuthenticatedIdentity,
   BillingState,
   DecisionStatus,
@@ -146,6 +147,7 @@ type TimelineEventRow = {
 
 type ApprovalEventRow = {
   id: string;
+  user_id: string;
   action_id: string;
   action_title: string;
   decision: DecisionStatus;
@@ -270,6 +272,7 @@ async function readWorkspaceFromDatabase(
       actionTitle: row.action_title,
       decision: row.decision,
       actor: row.actor_name,
+      actorId: row.user_id,
       createdAt: toIso(row.created_at),
     })),
     impactEntries: impactEntries.rows.map(mapImpactEntry),
@@ -708,7 +711,7 @@ async function updateActionDecision(
   businessId: string,
   actionId: string,
   status: DecisionStatus,
-  actor: string,
+  actor: ApprovalActor,
 ) {
   return withTransaction(async (client) => {
     await ensureWorkspaceInTransaction(client, businessId);
@@ -722,6 +725,8 @@ async function updateActionDecision(
       return null;
     }
 
+    const actorUser = await approvalUserForBusiness(client, businessId, actor.id);
+
     if (action.status === status) {
       return readWorkspaceFromDatabaseOrThrow(client, businessId);
     }
@@ -731,7 +736,6 @@ async function updateActionDecision(
       [businessId, actionId, status],
     );
 
-    const actorUser = await firstUserForBusiness(client, businessId);
     await client.query(
       `insert into approval_events
         (id, business_id, action_id, user_id, action_title, decision, actor_name)
@@ -743,7 +747,7 @@ async function updateActionDecision(
         actorUser.id,
         action.title,
         status,
-        actor,
+        actorUser.full_name,
       ],
     );
 
@@ -760,7 +764,7 @@ async function updateActionDecision(
       await insertExecutionJob(
         client,
         businessId,
-        createExecutionJob(mapAction(action), actor),
+        createExecutionJob(mapAction(action), actorUser.full_name),
       );
     }
 
@@ -847,15 +851,19 @@ async function readWorkspaceFromDatabaseOrThrow(
   return workspace;
 }
 
-async function firstUserForBusiness(client: PoolClient, businessId: string) {
+async function approvalUserForBusiness(
+  client: PoolClient,
+  businessId: string,
+  userId: string,
+) {
   const result = await client.query<UserRow>(
-    "select * from users where business_id = $1 order by created_at asc limit 1",
-    [businessId],
+    "select * from users where business_id = $1 and id = $2 and status = 'active'",
+    [businessId, userId],
   );
   const user = result.rows[0];
 
   if (!user) {
-    throw new Error(`Business ${businessId} has no users.`);
+    throw new Error("Approval actor must be an active member of this business.");
   }
 
   return user;

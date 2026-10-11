@@ -129,6 +129,8 @@ export type ApprovalEvent = {
   actionTitle: string;
   decision: Extract<ActionStatus, "approved" | "dismissed">;
   actor: string;
+  // Older file-backed events may not have a recorded user ID.
+  actorId?: string;
   createdAt: string;
 };
 
