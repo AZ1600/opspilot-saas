@@ -60,6 +60,7 @@ export type StripeCustomerBillingUpdate = Omit<
 
 export type WorkspaceRepository = {
   read(businessId: string): Promise<WorkspaceSnapshot>;
+  resolveDemoSession(user: WorkspaceUser): Promise<ResolvedSession>;
   resolveAuthenticatedSession(
     identity: AuthenticatedIdentity,
   ): Promise<ResolvedSession>;

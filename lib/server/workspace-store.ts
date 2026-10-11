@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { assertDemoSessionUser } from "@/lib/server/demo-session";
 import { demoWorkspace } from "@/lib/demo-data";
 import { getPlan } from "@/lib/billing";
 import { getWritableDataDir } from "@/lib/server/file-storage";
@@ -12,6 +13,7 @@ import type {
   ImpactEntry,
   OnboardingProfile,
   TeamInvite,
+  TeamMember,
   WorkspaceUser,
   WorkspaceSettings,
   WorkspaceSnapshot,
@@ -85,6 +87,40 @@ function normalizeWorkspace(
     impactEntries: workspace.impactEntries ?? seed.impactEntries,
     executionJobs: workspace.executionJobs ?? seed.executionJobs,
   };
+}
+
+export async function resolveDemoSession(
+  user: WorkspaceUser,
+): Promise<ResolvedSession> {
+  assertDemoSessionUser(user);
+  const workspace = await readWorkspace(user.businessId);
+  const member: TeamMember = {
+    ...user,
+    fullName: user.fullName.trim(),
+    status: "active",
+  };
+  const existing = workspace.teamMembers.find((entry) => entry.id === user.id);
+
+  if (
+    !existing ||
+    existing.businessId !== member.businessId ||
+    existing.fullName !== member.fullName ||
+    existing.email !== member.email ||
+    existing.role !== member.role ||
+    existing.status !== "active"
+  ) {
+    await writeWorkspace(user.businessId, {
+      ...workspace,
+      currentUser: workspace.currentUser.id === member.id
+        ? { ...workspace.currentUser, ...user, fullName: member.fullName }
+        : workspace.currentUser,
+      teamMembers: existing
+        ? workspace.teamMembers.map((entry) => entry.id === member.id ? member : entry)
+        : [...workspace.teamMembers, member],
+    });
+  }
+
+  return { businessId: member.businessId, user: member };
 }
 
 export async function updateBillingPlan(
@@ -561,6 +597,7 @@ function impactNoteFor(
 export const fileWorkspaceRepository: WorkspaceRepository = {
   read: readWorkspace,
   resolveAuthenticatedSession,
+  resolveDemoSession,
   reset: resetWorkspace,
   onboard: onboardWorkspace,
   updateSettings: updateWorkspaceSettings,

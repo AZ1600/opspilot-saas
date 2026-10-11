@@ -27,28 +27,28 @@ export async function requireSession(): Promise<RequestSession> {
   }
 
   if (!isDemoAuthAllowed()) {
-  throw new Error(
-    "Demo authentication is disabled in production.",
-  );
-}
-
+    throw new Error("Demo authentication is disabled in production.");
+  }
 
   const cookieSession = await readSessionCookie();
 
   if (cookieSession) {
-    return cookieSession;
+    return getWorkspaceRepository().resolveDemoSession(cookieSession.user);
   }
 
+  const role = parseDevRole(process.env.OPSPILOT_DEV_ROLE);
+  const defaultName = role === "owner"
+    ? demoWorkspace.currentUser.fullName
+    : role === "manager" ? "Demo Manager" : "Demo Staff";
   const user: WorkspaceUser = {
     ...demoWorkspace.currentUser,
-    fullName: process.env.OPSPILOT_DEV_USER_NAME ?? demoWorkspace.currentUser.fullName,
-    role: parseDevRole(process.env.OPSPILOT_DEV_ROLE),
+    id: `user-demo-${role}`,
+    email: `${role}@brightops.example`,
+    fullName: process.env.OPSPILOT_DEV_USER_NAME?.trim() || defaultName,
+    role,
   };
 
-  return {
-    user,
-    businessId: user.businessId,
-  };
+  return getWorkspaceRepository().resolveDemoSession(user);
 }
 
 export function getAuthMode(): AuthMode {
