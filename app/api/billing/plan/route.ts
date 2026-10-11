@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { presentWorkspace, requireSession } from "@/lib/server/auth";
 import { forbidden, hasPermission } from "@/lib/server/permissions";
+import { isStripeConfigured } from "@/lib/server/stripe";
 import { getWorkspaceRepository } from "@/lib/server/repository";
 import { badRequest, readJsonObject, validatePlanId } from "@/lib/server/request-validation";
 
@@ -19,6 +20,13 @@ export async function PATCH(request: NextRequest) {
   const validated = validatePlanId(parsed.value);
   if (!validated.ok) {
     return badRequest(validated.error);
+  }
+
+  if (process.env.NODE_ENV === "production" || isStripeConfigured()) {
+    return NextResponse.json(
+      { error: "Use Stripe checkout to change billing plans." },
+      { status: 403 },
+    );
   }
 
   const repository = getWorkspaceRepository();

@@ -116,3 +116,41 @@ or database persistence. Separate PostgreSQL suites cover repository behavior.
 In an isolated project copy, all 172 unit tests, type checking and application
 lint passed. Run the production build after applying the complete files. CI
 also runs the existing PostgreSQL integration suites.
+
+## Production billing bypasses and signature freshness
+
+Date: 11 October 2026
+
+The direct billing-plan endpoint could update a production business without
+Stripe checkout. Checkout also changed the stored plan when Stripe was absent,
+using the same demo fallback in every environment.
+
+Direct plan selection is now limited to development/test demos with Stripe
+disabled. Production and Stripe-enabled direct changes return HTTP 403.
+Production checkout never falls back to a local plan update. Missing Stripe
+API configuration, webhook secret or selected plan price returns HTTP 503
+before starting checkout. Configured checkout returns a Stripe URL and leaves
+the current stored plan unchanged.
+
+Webhook verification previously checked the HMAC without checking its timestamp.
+Correctly signed captured requests therefore did not expire. The verifier now
+requires an integer Unix timestamp within 300 seconds of the server's current
+time, in either direction. It still verifies the exact raw body with SHA-256
+HMAC and constant-time signature comparison. Header parsing supports whitespace
+and multiple v1 signatures.
+
+Stripe documents a five-minute default tolerance and freshly signed delivery
+attempts: https://docs.stripe.com/webhooks#preventing-replay-attacks
+The check uses the signature header's delivery timestamp, not event.created,
+so a legitimately retried older event with a fresh signature can still pass.
+
+Nine billing-route cases and twenty webhook-signature cases were added.
+The webhook cases use real Node crypto and the real webhook verifier; repository
+mutations are mocked. Checkout creation is mocked and no live Stripe requests
+or charges are made by these tests. All 201 unit tests, TypeScript and application
+lint passed in an isolated project copy.
+
+Signature freshness does not track processed event IDs or resolve the ordering
+of distinct subscription events. Subscription entitlement policy and event
+deduplication/order handling remain separate work. Verify the production build
+after copying; existing PostgreSQL suites continue to run in CI.

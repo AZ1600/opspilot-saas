@@ -141,6 +141,7 @@ const routes: RouteCase[] = [
 ];
 
 beforeEach(() => {
+  vi.stubEnv("NODE_ENV", "test");
   vi.clearAllMocks();
   vi.mocked(requireSession).mockReset().mockResolvedValue({ businessId: owner.businessId, user: owner });
   for (const fn of Object.values(mocks.repository)) { fn.mockReset().mockResolvedValue(workspace); }

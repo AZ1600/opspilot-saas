@@ -25,7 +25,12 @@ export async function POST(request: NextRequest) {
   }
   const planId = validated.value;
 
+  const production = process.env.NODE_ENV === "production";
+
   if (!isStripeConfigured()) {
+    if (production) {
+      return billingUnavailable();
+    }
     const repository = getWorkspaceRepository();
     const workspace = await repository.updateBillingPlan(
       session.businessId,
@@ -38,9 +43,16 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  if (production && !process.env.STRIPE_WEBHOOK_SECRET) {
+    return billingUnavailable();
+  }
+
   const priceId = getStripePriceId(planId);
 
   if (!priceId) {
+    if (production) {
+      return billingUnavailable();
+    }
     return NextResponse.json(
       { error: `Missing Stripe price ID for ${planId}.` },
       { status: 400 },
@@ -53,10 +65,18 @@ export async function POST(request: NextRequest) {
     businessId: session.businessId,
     customerEmail: session.user.email,
     customerId: billing.stripeCustomerId,
-    planId: planId,
+    planId,
     priceId,
     returnUrl: new URL("/", request.url).toString(),
   });
 
   return NextResponse.json({ mode: "stripe", url: checkout.url });
+}
+
+
+function billingUnavailable() {
+  return NextResponse.json(
+    { error: "Billing is temporarily unavailable. Please try again later." },
+    { status: 503 },
+  );
 }
