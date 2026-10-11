@@ -9,6 +9,7 @@ import type {
   AuthenticatedIdentity,
   BillingState,
   DecisionStatus,
+  DemoSessionOptions,
   ExecutionStatus,
   InboxImport,
   InboxScanInsert,
@@ -386,7 +387,10 @@ async function read(businessId: string) {
   return ensureWorkspace(businessId);
 }
 
-async function resolveDemoSession(user: WorkspaceUser): Promise<ResolvedSession> {
+async function resolveDemoSession(
+  user: WorkspaceUser,
+  options: DemoSessionOptions = {},
+): Promise<ResolvedSession> {
   assertDemoSessionUser(user);
 
   return withTransaction(async (client) => {
@@ -396,13 +400,14 @@ async function resolveDemoSession(user: WorkspaceUser): Promise<ResolvedSession>
        values ($1, $2, $3, $4, $5, 'active')
        on conflict (id) do update set
          email = excluded.email,
-         full_name = excluded.full_name,
+         full_name = case when $6 then excluded.full_name else users.full_name end,
          role = excluded.role,
          status = 'active'
        where users.business_id = excluded.business_id
          and users.auth_provider is null
+         and users.auth_user_id is null
        returning *`,
-      [user.id, user.businessId, user.email, user.fullName.trim(), user.role],
+      [user.id, user.businessId, user.email, user.fullName.trim(), user.role, options.updateName === true],
     );
     const member = result.rows[0];
 

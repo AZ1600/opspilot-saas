@@ -82,11 +82,18 @@ export function presentWorkspace(
   workspace: WorkspaceSnapshot,
   session: RequestSession,
 ): WorkspaceSnapshot {
+  const currentProfile = workspace.currentUser.id === session.user.id &&
+    workspace.currentUser.businessId === session.businessId
+    ? workspace.currentUser
+    : workspace.teamMembers.find((member) =>
+        member.id === session.user.id && member.businessId === session.businessId,
+      );
   return {
     ...workspace,
     currentUser: {
       ...workspace.currentUser,
       ...session.user,
+      fullName: currentProfile?.fullName ?? session.user.fullName,
       businessId: session.businessId,
     },
   };

@@ -4,6 +4,7 @@ import {
   isClerkConfigured,
   sessionCookieName,
 } from "@/lib/server/auth";
+import { getWorkspaceRepository } from "@/lib/server/repository";
 import { isDemoAuthAllowed } from "@/lib/server/config";
 import type { WorkspaceUser } from "@/lib/types";
 
@@ -50,9 +51,10 @@ export async function POST(request: NextRequest) {
     fullName: name?.trim() || defaultName,
     role: role as WorkspaceUser["role"],
   };
+  const session = await getWorkspaceRepository().resolveDemoSession(user, { updateName: true });
   const response = NextResponse.redirect(new URL("/", request.url), 303);
 
-  response.cookies.set(sessionCookieName, createSessionCookieValue(user), {
+  response.cookies.set(sessionCookieName, createSessionCookieValue(session.user), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

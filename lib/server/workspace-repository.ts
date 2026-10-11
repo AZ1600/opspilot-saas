@@ -38,6 +38,10 @@ export type AuthenticatedIdentity = {
   email: string;
   fullName: string;
 };
+export type DemoSessionOptions = {
+  // Only an explicit demo login may replace an existing member's name.
+  updateName?: boolean;
+};
 export type ResolvedSession = {
   user: WorkspaceUser;
   businessId: string;
@@ -61,7 +65,7 @@ export type StripeCustomerBillingUpdate = Omit<
 
 export type WorkspaceRepository = {
   read(businessId: string): Promise<WorkspaceSnapshot>;
-  resolveDemoSession(user: WorkspaceUser): Promise<ResolvedSession>;
+  resolveDemoSession(user: WorkspaceUser, options?: DemoSessionOptions): Promise<ResolvedSession>;
   resolveAuthenticatedSession(
     identity: AuthenticatedIdentity,
   ): Promise<ResolvedSession>;

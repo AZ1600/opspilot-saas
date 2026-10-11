@@ -25,6 +25,7 @@ import type {
   AuthenticatedIdentity,
   BillingState,
   DecisionStatus,
+  DemoSessionOptions,
   ExecutionStatus,
   InboxImport,
   InboxScanInsert,
@@ -93,15 +94,19 @@ function normalizeWorkspace(
 
 export async function resolveDemoSession(
   user: WorkspaceUser,
+  options: DemoSessionOptions = {},
 ): Promise<ResolvedSession> {
   assertDemoSessionUser(user);
   const workspace = await readWorkspace(user.businessId);
+  const existing = workspace.teamMembers.find((entry) => entry.id === user.id);
+  // Older file settings writes updated only currentUser; keep that saved owner name.
+  const storedName = workspace.currentUser.id === user.id
+    ? workspace.currentUser.fullName : existing?.fullName;
   const member: TeamMember = {
     ...user,
-    fullName: user.fullName.trim(),
+    fullName: !options.updateName && storedName ? storedName : user.fullName.trim(),
     status: "active",
   };
-  const existing = workspace.teamMembers.find((entry) => entry.id === user.id);
 
   if (
     !existing ||
@@ -303,6 +308,11 @@ export async function updateWorkspaceSettings(
       ...workspace.currentUser,
       fullName: settings.ownerName,
     },
+    teamMembers: workspace.teamMembers.map((member) =>
+      member.id === workspace.currentUser.id
+        ? { ...member, fullName: settings.ownerName }
+        : member,
+    ),
     knowledgeDocuments: workspace.knowledgeDocuments.map((document) =>
       document.id === "doc-002"
         ? {
