@@ -1,6 +1,7 @@
 import { assertAuthenticatedIdentity, authenticatedBusinessId, AuthIdentityConflictError } from "@/lib/server/authenticated-identity";
 import type { PoolClient } from "pg";
 import { getPlan } from "@/lib/billing";
+import { completeExistingOnboarding } from "@/lib/server/onboarding";
 import { assertDemoSessionUser } from "@/lib/server/demo-session";
 import { demoWorkspace } from "@/lib/demo-data";
 import { getDatabasePool, withTransaction } from "@/lib/server/database";
@@ -498,28 +499,33 @@ async function onboard(
   owner?: WorkspaceUser,
 ) {
   return withTransaction(async (client) => {
-    await ensureAuthIdentitySchema(client);
-    const existingOwnerAuth = owner
-      ? await authIdentityForUser(client, owner.id, owner.email)
-      : null;
-    const workspace = createWorkspaceFromOnboarding(businessId, profile, owner);
-    await replaceWorkspace(client, workspace);
-
-    if (owner && existingOwnerAuth) {
-      await client.query(
-        `update users
-         set auth_provider = $3, auth_user_id = $4, status = 'active'
-         where business_id = $1 and id = $2`,
-        [
-          businessId,
-          owner.id,
-          existingOwnerAuth.auth_provider,
-          existingOwnerAuth.auth_user_id,
-        ],
-      );
+    // Also serialize first setup when the business row does not exist yet.
+    await client.query("select pg_advisory_xact_lock(hashtext($1))", [JSON.stringify(["onboarding", businessId])]);
+    const business = await client.query<BusinessRow>("select * from businesses where id = $1 for update", [businessId]);
+    if (!business.rows[0]) {
+      const workspace = createWorkspaceFromOnboarding(businessId, profile, owner);
+      await replaceWorkspace(client, workspace);
+      return workspace;
     }
+    const existing = await readWorkspaceFromDatabaseOrThrow(client, businessId);
+    const workspace = completeExistingOnboarding(existing, profile, owner);
+    if (workspace === existing) return existing;
 
-    return workspace;
+    await client.query(
+      `update businesses set name = $2, niche = $3, primary_pain_point = $4,
+         onboarding_completed = true where id = $1`,
+      [businessId, workspace.businessName, workspace.niche, workspace.primaryPainPoint],
+    );
+    await client.query(
+      "update users set full_name = $3 where business_id = $1 and id = $2 and role = 'owner' and status = 'active'",
+      [businessId, workspace.currentUser.id, workspace.currentUser.fullName],
+    );
+    for (const document of workspace.knowledgeDocuments) {
+      if (document.id === "doc-001" || document.id === "doc-002") {
+        await client.query("update knowledge_documents set body = $3 where business_id = $1 and id = $2", [businessId, document.id, document.body]);
+      }
+    }
+    return readWorkspaceFromDatabaseOrThrow(client, businessId);
   });
 }
 
@@ -928,28 +934,6 @@ async function ensureBillingSchema(client: PoolClient) {
      where stripe_customer_id is not null`,
   );
   billingSchemaReady = true;
-}
-
-async function authIdentityForUser(
-  client: PoolClient,
-  userId: string,
-  email: string,
-) {
-  const result = await client.query<Pick<UserRow, "auth_provider" | "auth_user_id">>(
-    `select auth_provider, auth_user_id
-     from users
-     where id = $1 or lower(email) = $2
-     order by case when id = $1 then 0 else 1 end
-     limit 1`,
-    [userId, email.toLowerCase()],
-  );
-  const authIdentity = result.rows[0];
-
-  if (!authIdentity?.auth_provider || !authIdentity.auth_user_id) {
-    return null;
-  }
-
-  return authIdentity;
 }
 
 async function attachAuthIdentity(
