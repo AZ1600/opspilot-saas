@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { presentWorkspace, requireSession } from "@/lib/server/auth";
 import { forbidden, hasPermission } from "@/lib/server/permissions";
 import { getWorkspaceRepository } from "@/lib/server/repository";
-import type { ActionStatus } from "@/lib/types";
+import type { DecisionStatus } from "@/lib/server/workspace-repository";
 
 export const runtime = "nodejs";
 
-type DecisionStatus = Extract<ActionStatus, "approved" | "dismissed">;
-
-const allowedStatuses = new Set<ActionStatus>(["approved", "dismissed"]);
+const allowedStatuses = new Set<DecisionStatus>(["approved", "dismissed"]);
 
 function isDecisionStatus(status: unknown): status is DecisionStatus {
-  return typeof status === "string" && allowedStatuses.has(status as ActionStatus);
+  return (
+    typeof status === "string" &&
+    allowedStatuses.has(status as DecisionStatus)
+  );
 }
 
 export async function PATCH(
@@ -19,21 +20,37 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   const session = await requireSession();
+
   if (!hasPermission(session, "actions:approve")) {
     return forbidden("actions:approve");
   }
 
-  const repository = getWorkspaceRepository();
   const { id } = await context.params;
-  const body = (await request.json()) as { status?: ActionStatus };
+  let body: unknown;
 
-  if (!isDecisionStatus(body.status)) {
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Request body must be valid JSON." },
+      { status: 400 },
+    );
+  }
+
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    Array.isArray(body) ||
+    !("status" in body) ||
+    !isDecisionStatus(body.status)
+  ) {
     return NextResponse.json(
       { error: "Status must be approved or dismissed." },
       { status: 400 },
     );
   }
 
+  const repository = getWorkspaceRepository();
   const workspace = await repository.updateActionDecision(
     session.businessId,
     id,
