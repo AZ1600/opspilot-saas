@@ -1,32 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { billingPlans, getStripePriceId } from "@/lib/billing";
+import { getStripePriceId } from "@/lib/billing";
 import { presentWorkspace, requireSession } from "@/lib/server/auth";
 import { forbidden, hasPermission } from "@/lib/server/permissions";
 import { getWorkspaceRepository } from "@/lib/server/repository";
 import { createCheckoutSession, isStripeConfigured } from "@/lib/server/stripe";
-import type { BillingPlan } from "@/lib/types";
+import { badRequest, readJsonObject, validatePlanId } from "@/lib/server/request-validation";
 
 export const runtime = "nodejs";
 
-const planIds = new Set(billingPlans.map((plan) => plan.id));
-
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as { planId?: BillingPlan["id"] };
   const session = await requireSession();
 
   if (!hasPermission(session, "billing:manage")) {
     return forbidden("billing:manage");
   }
 
-  if (!body.planId || !planIds.has(body.planId)) {
-    return NextResponse.json({ error: "Choose a valid plan." }, { status: 400 });
+  const parsed = await readJsonObject(request);
+  if (!parsed.ok) {
+    return badRequest(parsed.error);
   }
+  const validated = validatePlanId(parsed.value);
+  if (!validated.ok) {
+    return badRequest(validated.error);
+  }
+  const planId = validated.value;
 
   if (!isStripeConfigured()) {
     const repository = getWorkspaceRepository();
     const workspace = await repository.updateBillingPlan(
       session.businessId,
-      body.planId,
+      planId,
     );
 
     return NextResponse.json({
@@ -35,11 +38,11 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const priceId = getStripePriceId(body.planId);
+  const priceId = getStripePriceId(planId);
 
   if (!priceId) {
     return NextResponse.json(
-      { error: `Missing Stripe price ID for ${body.planId}.` },
+      { error: `Missing Stripe price ID for ${planId}.` },
       { status: 400 },
     );
   }
@@ -50,7 +53,7 @@ export async function POST(request: NextRequest) {
     businessId: session.businessId,
     customerEmail: session.user.email,
     customerId: billing.stripeCustomerId,
-    planId: body.planId,
+    planId: planId,
     priceId,
     returnUrl: new URL("/", request.url).toString(),
   });
