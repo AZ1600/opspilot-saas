@@ -384,6 +384,14 @@ async function ensureWorkspace(businessId: string) {
   });
 }
 
+async function checkHealth() {
+  const tables = ["businesses", "users", "business_actions", "revenue_leaks",
+    "customer_risks", "connected_accounts", "inbox_messages", "ingestions",
+    "knowledge_documents", "timeline_events", "approval_events", "impact_entries", "execution_jobs"];
+  // Resolve and permission-check the required tables without reading tenant rows.
+  await getDatabasePool().query(tables.map((table) => `select 1 from ${table}`).join(" union all ") + " limit 0");
+}
+
 async function read(businessId: string) {
   return ensureWorkspace(businessId);
 }
@@ -1485,6 +1493,7 @@ function toIso(value: Date | string) {
 }
 
 export const postgresWorkspaceRepository: WorkspaceRepository = {
+  checkHealth,
   read,
   resolveAuthenticatedSession,
   resolveDemoSession,

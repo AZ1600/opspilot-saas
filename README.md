@@ -644,14 +644,22 @@ Neon PostgreSQL
 
 Production configuration should include:
 
-- PostgreSQL instead of local file storage
+- `OPSPILOT_REPOSITORY=postgres` and a valid `DATABASE_URL`; production file storage is refused
 - Strong session secrets
 - Secure environment variables
-- Clerk authentication when enabled
+- Clerk authentication with both Clerk keys configured
 - Token encryption before enabling OAuth integrations
 - Read-only Gmail scopes
 - Runtime health verification
 - No credentials committed to source control
+
+### Production storage readiness
+
+Before deploying the storage guard, configure `OPSPILOT_REPOSITORY=postgres` and `DATABASE_URL` in Vercel's **Production** environment and apply `database/schema.sql` to that same database. Use your database provider's SQL tooling or the existing `npm run db:schema` command with the production environment configured. Existing deployments already using a schema-initialized PostgreSQL database retain their data.
+
+Production workspace and business API requests return 503 when the repository selector or database URL is missing or invalid. The storage guard does not block public pages, account access, logout or the health route; existing authentication configuration still applies to those routes.
+
+`GET /api/health` is a read-only dependency check. PostgreSQL checks connectivity and access to the required workspace tables without fetching tenant rows or seeding a demo workspace. File-mode development checks its configured directory or an existing parent without creating directories. Health responses are not cached. A successful health response verifies these readiness checks; it is not a backup or recovery test.
 
 ---
 

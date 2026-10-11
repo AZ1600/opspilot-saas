@@ -1,6 +1,7 @@
-import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { access, link, lstat, mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { assertAuthenticatedIdentity, authenticatedBusinessId, AuthIdentityConflictError } from "@/lib/server/authenticated-identity";
 import { completeExistingOnboarding } from "@/lib/server/onboarding";
 import { assertDemoSessionUser } from "@/lib/server/demo-session";
@@ -37,6 +38,27 @@ import type {
   StripeCustomerBillingUpdate,
   WorkspaceRepository,
 } from "@/lib/server/workspace-repository";
+
+export async function checkHealth() {
+  let candidate = resolve(getWritableDataDir());
+  while (true) {
+    let info;
+    try {
+      info = await lstat(candidate);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      const parent = dirname(candidate);
+      if (parent === candidate) throw error;
+      candidate = parent;
+      continue;
+    }
+    // A dangling configured symlink is unavailable, not a missing directory to create.
+    if (info.isSymbolicLink()) info = await stat(candidate);
+    if (!info.isDirectory()) throw new Error("Storage path is not a directory.");
+    await access(candidate, constants.R_OK | constants.W_OK | constants.X_OK);
+    return;
+  }
+}
 
 function workspacePathFor(businessId: string) {
   return join(getWritableDataDir(), `${businessId}.json`);
@@ -639,6 +661,7 @@ function impactNoteFor(
 }
 
 export const fileWorkspaceRepository: WorkspaceRepository = {
+  checkHealth,
   read: readWorkspace,
   resolveAuthenticatedSession,
   resolveDemoSession,
