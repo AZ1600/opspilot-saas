@@ -6,12 +6,20 @@ import {
   validateOAuthState,
 } from "@/lib/connectors/gmail";
 import { requireSession } from "@/lib/server/auth";
+import { forbidden, hasPermission } from "@/lib/server/permissions";
 import { getWorkspaceRepository } from "@/lib/server/repository";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   const session = await requireSession();
+
+  // OAuth callbacks mutate workspace connection state just like /connect.
+  // A role change during consent must not bypass the settings permission.
+  if (!hasPermission(session, "settings:manage")) {
+    return forbidden("settings:manage");
+  }
+
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");

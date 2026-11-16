@@ -439,6 +439,7 @@ Features include:
 
 - OAuth authorization flow
 - OAuth state validation
+- Permission checks on both connection initiation and the callback before Google token exchange
 - Access-token exchange
 - Encrypted token storage
 - Message retrieval and import
